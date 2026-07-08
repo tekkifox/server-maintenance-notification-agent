@@ -169,6 +169,32 @@ func TestBroadcastUsesDockerTransportWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestBroadcastPrefersRCONWhenNamesOverlap(t *testing.T) {
+	console := &recordingCommander{}
+	rcon := &recordingRCONExecutor{}
+	commander := NewDockerCommander(console, rcon, nil, nil, []string{"shared-server"}, []string{"minecraft"}, []string{"shared-server"}, []string{"minecraft"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		Message: "Restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(console.calls) != 0 {
+		t.Fatalf("expected no console calls, got %d", len(console.calls))
+	}
+	if len(rcon.calls) != 1 {
+		t.Fatalf("expected 1 rcon call, got %d", len(rcon.calls))
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportRCON {
+		t.Fatalf("expected rcon delivery, got %+v", result.Deliveries[0])
+	}
+}
+
 func TestBroadcastUsesMixedDefaultTransports(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}

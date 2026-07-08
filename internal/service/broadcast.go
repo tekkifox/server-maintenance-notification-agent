@@ -170,9 +170,7 @@ func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest) ([]Broad
 		return buildTargetsForRefs(refs, requestGame, req.RCON, d.defaultConsoleByRef, d.defaultRCONByRef), nil
 	}
 
-	targets := make([]BroadcastTarget, 0, len(d.defaultConsoleTargets)+len(d.defaultRCONTargets))
-	targets = append(targets, d.defaultConsoleTargets...)
-	targets = append(targets, d.defaultRCONTargets...)
+	targets := mergeDefaultTargetsPreferRCON(d.defaultConsoleTargets, d.defaultRCONTargets)
 	if requestGame == "" {
 		return targets, nil
 	}
@@ -235,6 +233,41 @@ func buildDefaultBroadcastTargets(ids, names, games []string) []BroadcastTarget 
 	}
 
 	return targets
+}
+
+func mergeDefaultTargetsPreferRCON(consoleTargets, rconTargets []BroadcastTarget) []BroadcastTarget {
+	if len(consoleTargets) == 0 {
+		return append([]BroadcastTarget(nil), rconTargets...)
+	}
+	if len(rconTargets) == 0 {
+		return append([]BroadcastTarget(nil), consoleTargets...)
+	}
+
+	rconByRef := make(map[string]BroadcastTarget, len(rconTargets))
+	for _, target := range rconTargets {
+		rconByRef[target.Ref] = target
+	}
+
+	merged := make([]BroadcastTarget, 0, len(consoleTargets)+len(rconTargets))
+	seen := make(map[string]struct{}, len(consoleTargets)+len(rconTargets))
+	for _, target := range consoleTargets {
+		if replacement, ok := rconByRef[target.Ref]; ok {
+			merged = append(merged, replacement)
+			seen[target.Ref] = struct{}{}
+			continue
+		}
+		merged = append(merged, target)
+		seen[target.Ref] = struct{}{}
+	}
+
+	for _, target := range rconTargets {
+		if _, ok := seen[target.Ref]; ok {
+			continue
+		}
+		merged = append(merged, target)
+	}
+
+	return merged
 }
 
 func buildDefaultRCONTargets(names, games, transports, addresses, passwords []string) []BroadcastTarget {
