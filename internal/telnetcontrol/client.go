@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func (c *Client) Execute(ctx context.Context, address, password, command string)
 	}
 
 	reader := bufio.NewReader(conn)
-	if err := drainTelnetGreeting(reader); err != nil && !isTimeoutError(err) {
+	if err := drainTelnetGreeting(conn, reader); err != nil && !isTimeoutError(err) {
 		return fmt.Errorf("read telnet greeting: %w", err)
 	}
 
@@ -46,7 +47,7 @@ func (c *Client) Execute(ctx context.Context, address, password, command string)
 		if _, err := fmt.Fprintf(conn, "%s\r\n", password); err != nil {
 			return fmt.Errorf("write telnet password: %w", err)
 		}
-		if err := drainTelnetGreeting(reader); err != nil && !isTimeoutError(err) {
+		if err := drainTelnetGreeting(conn, reader); err != nil && !isTimeoutError(err) {
 			return fmt.Errorf("read telnet password response: %w", err)
 		}
 	}
@@ -61,13 +62,20 @@ func (c *Client) Execute(ctx context.Context, address, password, command string)
 	return nil
 }
 
-func drainTelnetGreeting(reader *bufio.Reader) error {
-	for i := 0; i < 8; i++ {
+func drainTelnetGreeting(conn net.Conn, reader *bufio.Reader) error {
+	_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	defer func() {
+		_ = conn.SetReadDeadline(time.Time{})
+	}()
+
+	for {
 		if _, err := reader.ReadString('\n'); err != nil {
+			if err == io.EOF || isTimeoutError(err) {
+				return nil
+			}
 			return err
 		}
 	}
-	return nil
 }
 
 func isTimeoutError(err error) bool {
