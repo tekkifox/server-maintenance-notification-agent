@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"text/template"
@@ -43,21 +44,21 @@ type DockerCommander struct {
 	telnetExecutor        telnetcontrol.Executor
 	defaultConsoleTargets []BroadcastTarget
 	defaultRCONTargets    []BroadcastTarget
-	defaultGameByRef      map[string]string
+	defaultConsoleByRef   map[string]BroadcastTarget
 	defaultRCONByRef      map[string]BroadcastTarget
 }
 
-func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultContainerGames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
+func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultContainerGames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
 	consoleTargets := buildDefaultBroadcastTargets(defaultContainerIDs, defaultContainerNames, defaultContainerGames)
-	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
+	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
 	return &DockerCommander{
 		commander:             commander,
 		rconExecutor:          rconExecutor,
 		telnetExecutor:        telnetExecutor,
 		defaultConsoleTargets: consoleTargets,
 		defaultRCONTargets:    rconTargets,
-		defaultGameByRef:      buildBroadcastGameLookup(consoleTargets, rconTargets),
-		defaultRCONByRef:      buildRCONTargetLookup(rconTargets),
+		defaultConsoleByRef:   buildBroadcastTargetLookup(consoleTargets),
+		defaultRCONByRef:      buildBroadcastTargetLookup(rconTargets),
 	}
 }
 
@@ -82,14 +83,18 @@ func (d *DockerCommander) Send(ctx context.Context, req DockerCommandRequest) (D
 }
 
 func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (BroadcastResult, error) {
-	transport := normalizeBroadcastTransport(req.Transport)
-	targets, err := d.resolveBroadcastTargets(req, transport)
+	requestedTransport, hasTransportFilter := parseRequestedTransport(req.Transport)
+	targets, err := d.resolveBroadcastTargets(req)
 	if err != nil {
 		return BroadcastResult{}, err
+	}
+	if hasTransportFilter {
+		targets = filterTargetsByTransport(targets, requestedTransport)
 	}
 	if len(targets) == 0 {
 		return BroadcastResult{}, fmt.Errorf("container_id, container_ids, container_name, or container_names is required")
 	}
+	log.Printf("broadcast dispatch: targets=%d transport_filter=%s", len(targets), requestedTransport)
 
 	message := strings.TrimSpace(req.Message)
 	if message == "" {
@@ -102,7 +107,9 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 		if err != nil {
 			return BroadcastResult{}, err
 		}
-		if transport == BroadcastTransportRCON {
+		targetTransport := normalizeTargetTransport(target.Transport)
+		log.Printf("broadcast target hit: transport=%s ref=%s game=%s", targetTransport, target.Ref, resolvedGame)
+		if targetTransport == BroadcastTransportRCON {
 			if d.rconExecutor == nil {
 				return BroadcastResult{}, fmt.Errorf("rcon transport is not configured")
 			}
@@ -112,7 +119,7 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			if _, err := d.rconExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
 				return BroadcastResult{}, fmt.Errorf("send rcon to %s: %w", target.Ref, err)
 			}
-		} else if transport == BroadcastTransportTelnet {
+		} else if targetTransport == BroadcastTransportTelnet {
 			if d.telnetExecutor == nil {
 				return BroadcastResult{}, fmt.Errorf("telnet transport is not configured")
 			}
@@ -131,7 +138,7 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			}
 		}
 		deliveries = append(deliveries, BroadcastDelivery{
-			Transport:    transport,
+			Transport:    targetTransport,
 			ContainerRef: target.Ref,
 			Game:         resolvedGame,
 			Command:      command,
@@ -142,43 +149,23 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 	return BroadcastResult{Deliveries: deliveries, Sent: true}, nil
 }
 
-func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest, transport BroadcastTransport) ([]BroadcastTarget, error) {
+func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest) ([]BroadcastTarget, error) {
 	refs := normalizeContainerRefs(append(append(append([]string{req.ContainerID}, req.ContainerIDs...), req.ContainerName), req.ContainerNames...)...)
 	requestGame := strings.TrimSpace(req.Game)
-	switch transport {
-	case BroadcastTransportRCON, BroadcastTransportTelnet:
-		if len(refs) > 0 {
-			return buildRCONTargetsFromRefs(refs, requestGame, req.RCON, d.defaultRCONByRef), nil
-		}
-		if len(d.defaultRCONTargets) == 0 {
-			return nil, nil
-		}
-		if requestGame == "" {
-			return append([]BroadcastTarget(nil), d.defaultRCONTargets...), nil
-		}
-		targets := make([]BroadcastTarget, 0, len(d.defaultRCONTargets))
-		for _, target := range d.defaultRCONTargets {
-			target.Game = requestGame
-			targets = append(targets, target)
-		}
-		return targets, nil
-	default:
-		if len(refs) > 0 {
-			return buildTargetsFromRefs(refs, requestGame, d.defaultGameByRef), nil
-		}
-		if len(d.defaultConsoleTargets) == 0 {
-			return nil, nil
-		}
-		if requestGame == "" {
-			return append([]BroadcastTarget(nil), d.defaultConsoleTargets...), nil
-		}
-		targets := make([]BroadcastTarget, 0, len(d.defaultConsoleTargets))
-		for _, target := range d.defaultConsoleTargets {
-			target.Game = requestGame
-			targets = append(targets, target)
-		}
+	if len(refs) > 0 {
+		return buildTargetsForRefs(refs, requestGame, req.RCON, d.defaultConsoleByRef, d.defaultRCONByRef), nil
+	}
+
+	targets := make([]BroadcastTarget, 0, len(d.defaultConsoleTargets)+len(d.defaultRCONTargets))
+	targets = append(targets, d.defaultConsoleTargets...)
+	targets = append(targets, d.defaultRCONTargets...)
+	if requestGame == "" {
 		return targets, nil
 	}
+	for i := range targets {
+		targets[i].Game = requestGame
+	}
+	return targets, nil
 }
 
 func buildBroadcastCommand(game, override, message string) (string, string, error) {
@@ -218,7 +205,7 @@ func buildDefaultBroadcastTargets(ids, names, games []string) []BroadcastTarget 
 			return
 		}
 		seen[ref] = struct{}{}
-		targets = append(targets, BroadcastTarget{Ref: ref, Game: game})
+		targets = append(targets, BroadcastTarget{Ref: ref, Transport: BroadcastTransportDocker, Game: game})
 	}
 
 	for _, id := range normalizeContainerRefs(ids...) {
@@ -236,7 +223,7 @@ func buildDefaultBroadcastTargets(ids, names, games []string) []BroadcastTarget 
 	return targets
 }
 
-func buildDefaultRCONTargets(names, games, addresses, passwords []string) []BroadcastTarget {
+func buildDefaultRCONTargets(names, games, transports, addresses, passwords []string) []BroadcastTarget {
 	targets := make([]BroadcastTarget, 0, len(names))
 	seen := make(map[string]struct{})
 	for i, name := range normalizeContainerRefs(names...) {
@@ -244,9 +231,15 @@ func buildDefaultRCONTargets(names, games, addresses, passwords []string) []Broa
 			continue
 		}
 		seen[name] = struct{}{}
-		target := BroadcastTarget{Ref: name}
+		target := BroadcastTarget{Ref: name, Transport: BroadcastTransportDocker}
 		if i < len(games) {
 			target.Game = strings.TrimSpace(games[i])
+		}
+		if i < len(transports) {
+			target.Transport = normalizeConfiguredConnectionTransport(transports[i])
+		}
+		if target.Transport == "" {
+			target.Transport = BroadcastTransportDocker
 		}
 		if i < len(addresses) {
 			target.RCONAddress = strings.TrimSpace(addresses[i])
@@ -259,21 +252,41 @@ func buildDefaultRCONTargets(names, games, addresses, passwords []string) []Broa
 	return targets
 }
 
-func buildBroadcastGameLookup(consoleTargets, rconTargets []BroadcastTarget) map[string]string {
-	lookup := make(map[string]string, len(consoleTargets)+len(rconTargets))
-	for _, target := range consoleTargets {
-		if target.Game == "" {
-			continue
-		}
-		lookup[target.Ref] = target.Game
-	}
-	for _, target := range rconTargets {
-		if target.Game == "" {
-			continue
-		}
-		lookup[target.Ref] = target.Game
+func buildBroadcastTargetLookup(targets []BroadcastTarget) map[string]BroadcastTarget {
+	lookup := make(map[string]BroadcastTarget, len(targets))
+	for _, target := range targets {
+		lookup[target.Ref] = target
 	}
 	return lookup
+}
+
+func buildTargetsForRefs(refs []string, requestGame string, requestRCON *RCONRequest, consoleTargets, rconTargets map[string]BroadcastTarget) []BroadcastTarget {
+	targets := make([]BroadcastTarget, 0, len(refs))
+	for _, ref := range refs {
+		target, ok := rconTargets[ref]
+		if !ok {
+			target, ok = consoleTargets[ref]
+		}
+		if !ok {
+			target = BroadcastTarget{Ref: ref, Transport: BroadcastTransportDocker}
+		}
+		if requestGame != "" {
+			target.Game = requestGame
+		}
+		if target.Transport == "" {
+			target.Transport = BroadcastTransportDocker
+		}
+		if requestRCON != nil && (target.Transport == BroadcastTransportRCON || target.Transport == BroadcastTransportTelnet) {
+			if strings.TrimSpace(requestRCON.Address) != "" {
+				target.RCONAddress = strings.TrimSpace(requestRCON.Address)
+			}
+			if strings.TrimSpace(requestRCON.Password) != "" {
+				target.RCONPassword = strings.TrimSpace(requestRCON.Password)
+			}
+		}
+		targets = append(targets, target)
+	}
+	return targets
 }
 
 func buildRCONTargetLookup(targets []BroadcastTarget) map[string]BroadcastTarget {
@@ -284,48 +297,48 @@ func buildRCONTargetLookup(targets []BroadcastTarget) map[string]BroadcastTarget
 	return lookup
 }
 
-func buildTargetsFromRefs(refs []string, requestGame string, defaultGames map[string]string) []BroadcastTarget {
-	targets := make([]BroadcastTarget, 0, len(refs))
-	for _, ref := range refs {
-		game := requestGame
-		if game == "" {
-			game = defaultGames[ref]
-		}
-		targets = append(targets, BroadcastTarget{Ref: ref, Game: game})
+func parseRequestedTransport(value BroadcastTransport) (BroadcastTransport, bool) {
+	raw := strings.TrimSpace(string(value))
+	if raw == "" {
+		return BroadcastTransportDocker, false
 	}
-	return targets
+	return normalizeTargetTransport(BroadcastTransport(raw)), true
 }
 
-func buildRCONTargetsFromRefs(refs []string, requestGame string, requestRCON *RCONRequest, defaultTargets map[string]BroadcastTarget) []BroadcastTarget {
-	targets := make([]BroadcastTarget, 0, len(refs))
-	for _, ref := range refs {
-		target := BroadcastTarget{Ref: ref}
-		if requestGame != "" {
-			target.Game = requestGame
-		} else if defaultTarget, ok := defaultTargets[ref]; ok {
-			target.Game = defaultTarget.Game
-		}
-		if requestRCON != nil {
-			target.RCONAddress = strings.TrimSpace(requestRCON.Address)
-			target.RCONPassword = strings.TrimSpace(requestRCON.Password)
-		} else if defaultTarget, ok := defaultTargets[ref]; ok {
-			target.RCONAddress = strings.TrimSpace(defaultTarget.RCONAddress)
-			target.RCONPassword = strings.TrimSpace(defaultTarget.RCONPassword)
-		}
-		targets = append(targets, target)
+func normalizeConfiguredConnectionTransport(value string) BroadcastTransport {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(BroadcastTransportTelnet):
+		return BroadcastTransportTelnet
+	case string(BroadcastTransportRCON):
+		return BroadcastTransportRCON
+	case string(BroadcastTransportDocker), string(BroadcastTransportConsole), "":
+		return BroadcastTransportDocker
+	default:
+		return BroadcastTransportDocker
 	}
-	return targets
 }
 
-func normalizeBroadcastTransport(value BroadcastTransport) BroadcastTransport {
+func normalizeTargetTransport(value BroadcastTransport) BroadcastTransport {
 	switch strings.ToLower(strings.TrimSpace(string(value))) {
 	case string(BroadcastTransportRCON):
 		return BroadcastTransportRCON
 	case string(BroadcastTransportTelnet):
 		return BroadcastTransportTelnet
+	case string(BroadcastTransportDocker), string(BroadcastTransportConsole), "":
+		return BroadcastTransportDocker
 	default:
-		return BroadcastTransportConsole
+		return BroadcastTransportDocker
 	}
+}
+
+func filterTargetsByTransport(targets []BroadcastTarget, transport BroadcastTransport) []BroadcastTarget {
+	filtered := make([]BroadcastTarget, 0, len(targets))
+	for _, target := range targets {
+		if normalizeTargetTransport(target.Transport) == transport {
+			filtered = append(filtered, target)
+		}
+	}
+	return filtered
 }
 
 func normalizeContainerRefs(values ...string) []string {

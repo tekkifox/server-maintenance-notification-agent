@@ -14,6 +14,7 @@ type DockerCommandResult struct {
 type BroadcastTransport string
 
 const (
+	BroadcastTransportDocker  BroadcastTransport = "docker"
 	BroadcastTransportConsole BroadcastTransport = "console"
 	BroadcastTransportRCON    BroadcastTransport = "rcon"
 	BroadcastTransportTelnet  BroadcastTransport = "telnet"
@@ -51,6 +52,7 @@ type BroadcastResult struct {
 
 type BroadcastTarget struct {
 	Ref          string
+	Transport    BroadcastTransport
 	Game         string
 	RCONAddress  string
 	RCONPassword string

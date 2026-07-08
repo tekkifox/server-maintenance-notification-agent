@@ -51,7 +51,7 @@ func (r *recordingTelnetExecutor) Execute(_ context.Context, address, password, 
 
 func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Game:    "Minecraft",
@@ -81,7 +81,7 @@ func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 func TestBroadcastUsesRCONTransport(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}
-	commander := NewDockerCommander(console, rcon, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, []string{"minecraft-server"}, []string{"minecraft"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+	commander := NewDockerCommander(console, rcon, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, []string{"minecraft-server"}, []string{"minecraft"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Transport: BroadcastTransportRCON,
@@ -111,9 +111,110 @@ func TestBroadcastUsesRCONTransport(t *testing.T) {
 	}
 }
 
+func TestBroadcastUsesDockerTransportWhenConfigured(t *testing.T) {
+	recorder := &recordingCommander{}
+	commander := NewDockerCommander(recorder, nil, nil, nil, nil, nil, []string{"docker-server"}, []string{"minecraft"}, []string{"docker"}, nil, nil)
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		Message: "Server restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(recorder.calls) != 1 {
+		t.Fatalf("expected 1 docker call, got %d", len(recorder.calls))
+	}
+	if recorder.calls[0].containerRef != "docker-server" {
+		t.Fatalf("unexpected docker target: %+v", recorder.calls[0])
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportDocker {
+		t.Fatalf("expected docker delivery, got %+v", result.Deliveries[0])
+	}
+	if recorder.calls[0].command != "say \"Server restart in 10 minutes\"" {
+		t.Fatalf("unexpected docker command: %+v", recorder.calls[0])
+	}
+}
+
+func TestBroadcastUsesMixedDefaultTransports(t *testing.T) {
+	console := &recordingCommander{}
+	rcon := &recordingRCONExecutor{}
+	telnet := &recordingTelnetExecutor{}
+	commander := NewDockerCommander(console, rcon, telnet, nil, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"vrising", "vrising"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		Message: "Server restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 2 {
+		t.Fatalf("expected 2 deliveries, got %d", len(result.Deliveries))
+	}
+	if len(console.calls) != 0 {
+		t.Fatalf("expected no console calls, got %d", len(console.calls))
+	}
+	if len(rcon.calls) != 1 {
+		t.Fatalf("expected 1 rcon call, got %d", len(rcon.calls))
+	}
+	if len(telnet.calls) != 1 {
+		t.Fatalf("expected 1 telnet call, got %d", len(telnet.calls))
+	}
+	if rcon.calls[0].address != "127.0.0.1:27015" || rcon.calls[0].password != "secret" {
+		t.Fatalf("unexpected rcon connection details: %+v", rcon.calls[0])
+	}
+	if telnet.calls[0].address != "127.0.0.1:9876" || telnet.calls[0].password != "telnet-pass" {
+		t.Fatalf("unexpected telnet connection details: %+v", telnet.calls[0])
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportRCON && result.Deliveries[1].Transport != BroadcastTransportRCON {
+		t.Fatalf("expected an rcon delivery, got %+v", result.Deliveries)
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportTelnet && result.Deliveries[1].Transport != BroadcastTransportTelnet {
+		t.Fatalf("expected a telnet delivery, got %+v", result.Deliveries)
+	}
+	if result.Deliveries[0].Transport == result.Deliveries[1].Transport {
+		t.Fatalf("expected mixed transports, got %+v", result.Deliveries)
+	}
+}
+
+func TestBroadcastFiltersByExplicitTransport(t *testing.T) {
+	console := &recordingCommander{}
+	rcon := &recordingRCONExecutor{}
+	telnet := &recordingTelnetExecutor{}
+	commander := NewDockerCommander(console, rcon, telnet, nil, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"vrising", "vrising"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		Transport: BroadcastTransportRCON,
+		Message:   "Server restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(console.calls) != 0 {
+		t.Fatalf("expected no console calls, got %d", len(console.calls))
+	}
+	if len(rcon.calls) != 1 {
+		t.Fatalf("expected 1 rcon call, got %d", len(rcon.calls))
+	}
+	if len(telnet.calls) != 0 {
+		t.Fatalf("expected no telnet calls, got %d", len(telnet.calls))
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportRCON {
+		t.Fatalf("expected rcon delivery, got %+v", result.Deliveries)
+	}
+}
+
 func TestBroadcastPrefersExplicitContainerIDs(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil, nil)
 
 	_, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerIDs: []string{"gamma", "delta"},
@@ -134,7 +235,7 @@ func TestBroadcastPrefersExplicitContainerIDs(t *testing.T) {
 
 func TestBroadcastUsesDefaultContainerNamesAndGames(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server", "vrising-server"}, []string{"minecraft", "vrising"}, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server", "vrising-server"}, []string{"minecraft", "vrising"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Maintenance starts in 10 minutes",
@@ -162,7 +263,7 @@ func TestBroadcastUsesDefaultContainerNamesAndGames(t *testing.T) {
 
 func TestBroadcastUsesExplicitContainerNames(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerNames: []string{"minecraft-server", "vrising-server"},
@@ -188,7 +289,7 @@ func TestBroadcastUsesExplicitContainerNames(t *testing.T) {
 
 func TestBroadcastUsesSingleContainerName(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, []string{"minecraft"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerName: "minecraft-server",
@@ -211,7 +312,7 @@ func TestBroadcastUsesSingleContainerName(t *testing.T) {
 
 func TestBroadcastMessageOnlyUsesSay(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Message only",
@@ -234,7 +335,7 @@ func TestBroadcastMessageOnlyUsesSay(t *testing.T) {
 func TestBroadcastUsesTelnetTransport(t *testing.T) {
 	console := &recordingCommander{}
 	telnet := &recordingTelnetExecutor{}
-	commander := NewDockerCommander(console, nil, telnet, nil, []string{"vrising-server"}, []string{"vrising"}, []string{"vrising-server"}, []string{"vrising"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"vrising-server"}, []string{"vrising"}, []string{"vrising-server"}, []string{"vrising"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Transport: BroadcastTransportTelnet,

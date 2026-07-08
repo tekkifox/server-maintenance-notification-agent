@@ -70,6 +70,7 @@ func main() {
 		cfg.DefaultDockerContainerGames,
 		cfg.DefaultRCONContainerNames,
 		cfg.DefaultRCONContainerGames,
+		cfg.DefaultRCONContainerTransports,
 		cfg.DefaultRCONContainerAddresses,
 		cfg.DefaultRCONContainerPasswords,
 	)
