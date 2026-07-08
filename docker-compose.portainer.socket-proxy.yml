@@ -1,0 +1,19 @@
+services:
+  docker-socket-proxy:
+    image: lscr.io/linuxserver/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  notification-agent:
+    image: ghcr.io/${GHCR_OWNER:-tekkifox}/${GHCR_REPOSITORY:-server-maintenance-notification-agent}:${GHCR_TAG:-latest}
+    env_file:
+      - path: stack.env
+    depends_on:
+      - docker-socket-proxy
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
