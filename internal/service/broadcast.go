@@ -130,6 +130,7 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 		if strings.TrimSpace(target.Game) == "" && d.gameResolver != nil {
 			if resolvedGame, err := d.gameResolver.ResolveGame(ctx, target.Ref); err == nil {
 				if strings.TrimSpace(resolvedGame) != "" {
+					log.Printf("game match: pelican egg resolved ref=%s game=%q", target.Ref, resolvedGame)
 					target.Game = resolvedGame
 				}
 			} else {
@@ -231,15 +232,20 @@ func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest) ([]Broad
 func buildBroadcastCommand(game, override, message string) (string, string, error) {
 	override = strings.TrimSpace(override)
 	if override != "" {
+		log.Printf("game match: override provided game=%q override=%q", game, override)
 		return override, strings.TrimSpace(game), nil
 	}
 
-	tpl, ok := lookupBroadcastTemplate(game)
+	logGameMatching(game)
+	tpl, ok, matchedKey := lookupBroadcastTemplate(game)
 	if !ok {
+		log.Printf("game match: no template match raw=%q using=default", game)
 		tpl = broadcastTemplate{Game: strings.TrimSpace(game), Template: "say {{consoleMessage .Message}}"}
 		if tpl.Game == "" {
 			tpl.Game = "default"
 		}
+	} else {
+		log.Printf("game match: matched raw=%q key=%q template_game=%q", game, matchedKey, tpl.Game)
 	}
 
 	command, err := executeBroadcastTemplate(tpl.Template, message)
@@ -556,13 +562,22 @@ func normalizeGameNameCandidates(game string) []string {
 	return candidates
 }
 
-func lookupBroadcastTemplate(game string) (broadcastTemplate, bool) {
+func lookupBroadcastTemplate(game string) (broadcastTemplate, bool, string) {
 	for _, key := range normalizeGameNameCandidates(game) {
 		if tpl, ok := broadcastTemplates[key]; ok {
-			return tpl, true
+			return tpl, true, key
 		}
 	}
-	return broadcastTemplate{}, false
+	return broadcastTemplate{}, false, ""
+}
+
+func logGameMatching(game string) {
+	candidates := normalizeGameNameCandidates(game)
+	if len(candidates) == 0 {
+		log.Printf("game match: raw=%q normalized=<none>", game)
+		return
+	}
+	log.Printf("game match: raw=%q normalized=%v", game, candidates)
 }
 
 func quoteConsoleMessage(value string) string {

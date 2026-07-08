@@ -58,6 +58,7 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 		return "", nil
 	}
 
+	// Pelican uses the egg name as the authoritative game label for matching.
 	game, err := r.lookupEggName(ctx, server.Nest, server.Egg)
 	if err != nil {
 		return "", err
