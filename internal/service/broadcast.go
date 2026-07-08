@@ -108,6 +108,7 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			return BroadcastResult{}, err
 		}
 		targetTransport := normalizeTargetTransport(target.Transport)
+		actualTransport := targetTransport
 		log.Printf("broadcast target hit: transport=%s ref=%s game=%s", targetTransport, target.Ref, resolvedGame)
 		if req.DryRun {
 			deliveries = append(deliveries, BroadcastDelivery{
@@ -137,7 +138,18 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 				return BroadcastResult{}, fmt.Errorf("telnet address and password are required for %s", target.Ref)
 			}
 			if err := d.telnetExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
-				return BroadcastResult{}, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+				if fallbackTarget, ok := d.defaultConsoleByRef[target.Ref]; ok {
+					if d.commander == nil {
+						return BroadcastResult{}, fmt.Errorf("telnet to %s failed and docker control is not configured: %w", target.Ref, err)
+					}
+					log.Printf("broadcast fallback: telnet failed for ref=%s, retrying docker transport", target.Ref)
+					if fallbackErr := d.commander.SendCommand(ctx, fallbackTarget.Ref, command); fallbackErr != nil {
+						return BroadcastResult{}, fmt.Errorf("telnet to %s failed: %v; docker fallback to %s failed: %w", target.Ref, err, fallbackTarget.Ref, fallbackErr)
+					}
+					actualTransport = BroadcastTransportDocker
+				} else {
+					return BroadcastResult{}, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+				}
 			}
 		} else {
 			if d.commander == nil {
@@ -148,7 +160,7 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			}
 		}
 		deliveries = append(deliveries, BroadcastDelivery{
-			Transport:    targetTransport,
+			Transport:    actualTransport,
 			ContainerRef: target.Ref,
 			Game:         resolvedGame,
 			Command:      command,

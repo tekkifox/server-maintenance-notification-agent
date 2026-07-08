@@ -17,6 +17,11 @@ type recordingTelnetExecutor struct {
 	calls []recordingTelnetCall
 }
 
+type failingTelnetExecutor struct {
+	calls []recordingTelnetCall
+	err   error
+}
+
 type recordingRCONCall struct {
 	address  string
 	password string
@@ -47,6 +52,14 @@ func (r *recordingRCONExecutor) Execute(_ context.Context, address, password, co
 func (r *recordingTelnetExecutor) Execute(_ context.Context, address, password, command string) error {
 	r.calls = append(r.calls, recordingTelnetCall{address: address, password: password, command: command})
 	return nil
+}
+
+func (r *failingTelnetExecutor) Execute(_ context.Context, address, password, command string) error {
+	r.calls = append(r.calls, recordingTelnetCall{address: address, password: password, command: command})
+	if r.err != nil {
+		return r.err
+	}
+	return context.DeadlineExceeded
 }
 
 func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
@@ -415,5 +428,34 @@ func TestBroadcastUsesTelnetTransport(t *testing.T) {
 	}
 	if telnet.calls[0].command != "announce \"Server restart in 10 minutes\"" {
 		t.Fatalf("unexpected telnet command: %+v", telnet.calls[0])
+	}
+}
+
+func TestBroadcastFallsBackToDockerAfterTelnetFailure(t *testing.T) {
+	console := &recordingCommander{}
+	telnet := &failingTelnetExecutor{err: context.DeadlineExceeded}
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"minecraft"}, []string{"shared-server"}, []string{"minecraft"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		Message: "Server restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(telnet.calls) != 1 {
+		t.Fatalf("expected 1 telnet call, got %d", len(telnet.calls))
+	}
+	if len(console.calls) != 1 {
+		t.Fatalf("expected 1 docker fallback call, got %d", len(console.calls))
+	}
+	if console.calls[0].containerRef != "shared-server" {
+		t.Fatalf("unexpected docker fallback target: %+v", console.calls[0])
+	}
+	if result.Deliveries[0].Transport != BroadcastTransportDocker {
+		t.Fatalf("expected docker delivery after fallback, got %+v", result.Deliveries[0])
 	}
 }
