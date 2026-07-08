@@ -83,6 +83,13 @@ func TestBuildBroadcastCommand(t *testing.T) {
 			wantGame: "factorio",
 		},
 		{
+			name:     "tshock alias",
+			game:     "tShock",
+			message:  "Server restart in 10 minutes",
+			wantCmd:  "say \"Server restart in 10 minutes\"",
+			wantGame: "terraria",
+		},
+		{
 			name:     "custom override",
 			game:     "Unknown",
 			override: "say hello everyone",

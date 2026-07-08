@@ -665,6 +665,7 @@ func buildBroadcastGameAliases() map[string]string {
 		"fabric":        "minecraft",
 		"neoforge":      "minecraft",
 		"papermcserver": "minecraft",
+		"tshock":        "terraria",
 	}
 
 	normalized := make(map[string]string, len(aliases))
