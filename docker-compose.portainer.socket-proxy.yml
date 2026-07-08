@@ -1,6 +1,6 @@
 services:
   docker-socket-proxy:
-    image: lscr.io/linuxserver/docker-socket-proxy:latest
+    image: linuxserver/socket-proxy:latest
     environment:
       CONTAINERS: 1
       POST: 1
