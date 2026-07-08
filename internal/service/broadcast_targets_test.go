@@ -78,6 +78,36 @@ func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 	}
 }
 
+func TestBroadcastDryRunDoesNotSend(t *testing.T) {
+	recorder := &recordingCommander{}
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil, nil, nil)
+
+	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
+		DryRun:  true,
+		Game:    "Minecraft",
+		Message: "Restart in 10 minutes",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !result.DryRun {
+		t.Fatalf("expected dry run result")
+	}
+	if result.Sent {
+		t.Fatalf("expected sent=false on dry run")
+	}
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(recorder.calls) != 0 {
+		t.Fatalf("expected no docker calls, got %d", len(recorder.calls))
+	}
+	if result.Deliveries[0].Sent {
+		t.Fatalf("expected dry-run delivery to be marked unsent")
+	}
+}
+
 func TestBroadcastUsesRCONTransport(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}

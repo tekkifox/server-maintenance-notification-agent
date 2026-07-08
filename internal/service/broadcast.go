@@ -109,6 +109,16 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 		}
 		targetTransport := normalizeTargetTransport(target.Transport)
 		log.Printf("broadcast target hit: transport=%s ref=%s game=%s", targetTransport, target.Ref, resolvedGame)
+		if req.DryRun {
+			deliveries = append(deliveries, BroadcastDelivery{
+				Transport:    targetTransport,
+				ContainerRef: target.Ref,
+				Game:         resolvedGame,
+				Command:      command,
+				Sent:         false,
+			})
+			continue
+		}
 		if targetTransport == BroadcastTransportRCON {
 			if d.rconExecutor == nil {
 				return BroadcastResult{}, fmt.Errorf("rcon transport is not configured")
@@ -144,6 +154,10 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			Command:      command,
 			Sent:         true,
 		})
+	}
+
+	if req.DryRun {
+		return BroadcastResult{Deliveries: deliveries, DryRun: true, Sent: false}, nil
 	}
 
 	return BroadcastResult{Deliveries: deliveries, Sent: true}, nil
@@ -311,7 +325,7 @@ func normalizeConfiguredConnectionTransport(value string) BroadcastTransport {
 		return BroadcastTransportTelnet
 	case string(BroadcastTransportRCON):
 		return BroadcastTransportRCON
-	case string(BroadcastTransportDocker), string(BroadcastTransportConsole), "":
+	case string(BroadcastTransportDocker), "":
 		return BroadcastTransportDocker
 	default:
 		return BroadcastTransportDocker
@@ -324,7 +338,7 @@ func normalizeTargetTransport(value BroadcastTransport) BroadcastTransport {
 		return BroadcastTransportRCON
 	case string(BroadcastTransportTelnet):
 		return BroadcastTransportTelnet
-	case string(BroadcastTransportDocker), string(BroadcastTransportConsole), "":
+	case string(BroadcastTransportDocker), "":
 		return BroadcastTransportDocker
 	default:
 		return BroadcastTransportDocker

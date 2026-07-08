@@ -14,10 +14,9 @@ type DockerCommandResult struct {
 type BroadcastTransport string
 
 const (
-	BroadcastTransportDocker  BroadcastTransport = "docker"
-	BroadcastTransportConsole BroadcastTransport = "console"
-	BroadcastTransportRCON    BroadcastTransport = "rcon"
-	BroadcastTransportTelnet  BroadcastTransport = "telnet"
+	BroadcastTransportDocker BroadcastTransport = "docker"
+	BroadcastTransportRCON   BroadcastTransport = "rcon"
+	BroadcastTransportTelnet BroadcastTransport = "telnet"
 )
 
 type RCONRequest struct {
@@ -27,6 +26,7 @@ type RCONRequest struct {
 
 type BroadcastRequest struct {
 	Transport      BroadcastTransport `json:"transport,omitempty"`
+	DryRun         bool               `json:"dry_run,omitempty"`
 	ContainerID    string             `json:"container_id"`
 	ContainerIDs   []string           `json:"container_ids,omitempty"`
 	ContainerName  string             `json:"container_name,omitempty"`
@@ -47,6 +47,7 @@ type BroadcastDelivery struct {
 
 type BroadcastResult struct {
 	Deliveries []BroadcastDelivery `json:"deliveries"`
+	DryRun     bool                `json:"dry_run,omitempty"`
 	Sent       bool                `json:"sent"`
 }
 

@@ -227,6 +227,9 @@ func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 	if req.ContainerID == "" {
 		req.ContainerID = r.PathValue("container_id")
 	}
+	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
+		req.DryRun = dryRun
+	}
 
 	result, err := s.dockerCommander.Broadcast(r.Context(), req)
 	if err != nil {
@@ -239,6 +242,21 @@ func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, result)
+}
+
+func parseBoolQuery(r *http.Request, key string) (bool, bool) {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return false, false
+	}
+	switch strings.ToLower(value) {
+	case "1", "true", "t", "yes", "y", "on":
+		return true, true
+	case "0", "false", "f", "no", "n", "off":
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
