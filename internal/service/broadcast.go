@@ -18,6 +18,9 @@ type broadcastTemplate struct {
 
 var broadcastTemplates = map[string]broadcastTemplate{
 	"minecraft":      {Game: "minecraft", Template: "say {{consoleMessage .Message}}"},
+	"unturned":       {Game: "unturned", Template: "say {{consoleMessage .Message}}"},
+	"starbound":      {Game: "starbound", Template: "say {{consoleMessage .Message}}"},
+	"satisfactory":   {Game: "satisfactory", Template: "Broadcast {{consoleMessage .Message}}"},
 	"vrising":        {Game: "vrising", Template: "announce {{consoleMessage .Message}}"},
 	"7dtd":           {Game: "7 days to die", Template: "say {{consoleMessage .Message}}"},
 	"7daystodie":     {Game: "7 days to die", Template: "say {{consoleMessage .Message}}"},
