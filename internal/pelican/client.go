@@ -14,11 +14,11 @@ import (
 )
 
 type Resolver struct {
-	baseURL    *url.URL
-	token      string
+	baseURL      *url.URL
+	token        string
 	logAPIOutput bool
-	httpClient *http.Client
-	cache      sync.Map
+	httpClient   *http.Client
+	cache        sync.Map
 }
 
 func NewResolver(baseURL, token string, logAPIOutput bool) (*Resolver, error) {
@@ -35,8 +35,8 @@ func NewResolver(baseURL, token string, logAPIOutput bool) (*Resolver, error) {
 	parsed.Path = strings.TrimRight(parsed.Path, "/")
 
 	return &Resolver{
-		baseURL: parsed,
-		token:   token,
+		baseURL:      parsed,
+		token:        token,
 		logAPIOutput: logAPIOutput,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -70,7 +70,7 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 	r.logf("pelican api output: uuid=%s server=%q identifier=%q name=%q nest=%d egg=%d", containerRef, server.UUID, server.Identifier, server.Name, server.Nest, server.Egg)
 
 	// Pelican uses the egg name as the authoritative game label for matching.
-	game, err := r.lookupEggName(ctx, server.Nest, server.Egg)
+	game, err := r.lookupEggName(ctx, server.Egg)
 	if err != nil {
 		return "", err
 	}
@@ -171,13 +171,13 @@ func matchServer(ref string, items []applicationServerItem) *applicationServerAt
 	return nil
 }
 
-func (r *Resolver) lookupEggName(ctx context.Context, nestID, eggID int) (string, error) {
-	if nestID <= 0 || eggID <= 0 {
+func (r *Resolver) lookupEggName(ctx context.Context, eggID int) (string, error) {
+	if eggID <= 0 {
 		return "", nil
 	}
 
 	endpoint := *r.baseURL
-	endpoint.Path = path.Join(strings.TrimRight(endpoint.Path, "/"), fmt.Sprintf("api/application/nests/%d/eggs/%d", nestID, eggID))
+	endpoint.Path = path.Join(strings.TrimRight(endpoint.Path, "/"), fmt.Sprintf("api/application/eggs/%d", eggID))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	if err != nil {
@@ -203,6 +203,6 @@ func (r *Resolver) lookupEggName(ctx context.Context, nestID, eggID int) (string
 	}
 
 	name := strings.TrimSpace(payload.Attributes.Name)
-	r.logf("pelican api output: nest=%d egg=%d name=%q", nestID, eggID, name)
+	r.logf("pelican api output: egg=%d name=%q", eggID, name)
 	return name, nil
 }

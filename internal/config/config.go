@@ -12,7 +12,7 @@ type Config struct {
 	DiscordBotToken                string
 	PelicanAPIURL                  string
 	PelicanAPIToken                string
-	PelicanLogAPIOutput             bool
+	PelicanLogAPIOutput            bool
 	DefaultChannelIDs              []string
 	DefaultDockerContainerIDs      []string
 	DefaultDockerContainerNames    []string
@@ -77,7 +77,7 @@ func FromEnv() (Config, error) {
 		DiscordBotToken:                strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN")),
 		PelicanAPIURL:                  strings.TrimSpace(os.Getenv("PELICAN_API_URL")),
 		PelicanAPIToken:                strings.TrimSpace(os.Getenv("PELICAN_API_TOKEN")),
-		PelicanLogAPIOutput:             parseBoolEnv("PELICAN_LOG_API_OUTPUT", false),
+		PelicanLogAPIOutput:            parseBoolEnv("PELICAN_LOG_API_OUTPUT", false),
 		DefaultChannelIDs:              parseDelimitedList(os.Getenv("DISCORD_DEFAULT_CHANNEL_IDS"), os.Getenv("DISCORD_DEFAULT_CHANNEL_ID")),
 		DefaultDockerContainerNames:    parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_NAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_NAME")),
 		DefaultDockerFallbackGameTypes: parseDelimitedList(os.Getenv("DOCKER_FALLBACK_GAME_TYPES"), os.Getenv("DOCKER_FALLBACK_GAME_TYPE")),

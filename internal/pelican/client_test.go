@@ -35,7 +35,7 @@ func TestResolveGameFromApplicationAPI(t *testing.T) {
 					},
 				},
 			})
-		case "/api/application/nests/2/eggs/5":
+		case "/api/application/eggs/5":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"attributes": map[string]any{
 					"name": "Minecraft Dedicated Server",
