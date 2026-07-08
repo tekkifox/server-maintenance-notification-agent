@@ -16,6 +16,7 @@ type BroadcastTransport string
 const (
 	BroadcastTransportConsole BroadcastTransport = "console"
 	BroadcastTransportRCON    BroadcastTransport = "rcon"
+	BroadcastTransportTelnet  BroadcastTransport = "telnet"
 )
 
 type RCONRequest struct {

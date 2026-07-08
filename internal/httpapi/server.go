@@ -31,6 +31,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/webhooks/portainer", s.portainerWebhook)
 	mux.HandleFunc("POST /v1/docker/containers/{container_id}/command", s.dockerCommand)
 	mux.HandleFunc("POST /v1/docker/containers/{container_id}/broadcast", s.dockerBroadcast)
+	mux.HandleFunc("POST /v1/command/broadcast", s.dockerBroadcast)
 	mux.HandleFunc("POST /v1/docker/broadcast", s.dockerBroadcast)
 	return requestLogger(mux)
 }

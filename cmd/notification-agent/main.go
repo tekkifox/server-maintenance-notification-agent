@@ -16,6 +16,7 @@ import (
 	"server-maintenance-notification-agent/internal/httpapi"
 	"server-maintenance-notification-agent/internal/rconcontrol"
 	"server-maintenance-notification-agent/internal/service"
+	"server-maintenance-notification-agent/internal/telnetcontrol"
 )
 
 func main() {
@@ -59,9 +60,11 @@ func main() {
 
 	notifier := service.NewNotifier(discordClient, cfg.DefaultChannelIDs)
 	rconClient := rconcontrol.NewClient()
+	telnetClient := telnetcontrol.NewClient()
 	dockerCommander := service.NewDockerCommander(
 		dockerClient,
 		rconClient,
+		telnetClient,
 		cfg.DefaultDockerContainerIDs,
 		cfg.DefaultDockerContainerNames,
 		cfg.DefaultDockerContainerGames,

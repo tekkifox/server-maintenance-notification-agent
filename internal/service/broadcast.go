@@ -10,6 +10,7 @@ import (
 
 	"server-maintenance-notification-agent/internal/dockercontrol"
 	"server-maintenance-notification-agent/internal/rconcontrol"
+	"server-maintenance-notification-agent/internal/telnetcontrol"
 )
 
 type broadcastTemplate struct {
@@ -39,18 +40,20 @@ type broadcastTemplateData struct {
 type DockerCommander struct {
 	commander             dockercontrol.Commander
 	rconExecutor          rconcontrol.Executor
+	telnetExecutor        telnetcontrol.Executor
 	defaultConsoleTargets []BroadcastTarget
 	defaultRCONTargets    []BroadcastTarget
 	defaultGameByRef      map[string]string
 	defaultRCONByRef      map[string]BroadcastTarget
 }
 
-func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultContainerGames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
+func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultContainerGames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
 	consoleTargets := buildDefaultBroadcastTargets(defaultContainerIDs, defaultContainerNames, defaultContainerGames)
 	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
 	return &DockerCommander{
 		commander:             commander,
 		rconExecutor:          rconExecutor,
+		telnetExecutor:        telnetExecutor,
 		defaultConsoleTargets: consoleTargets,
 		defaultRCONTargets:    rconTargets,
 		defaultGameByRef:      buildBroadcastGameLookup(consoleTargets, rconTargets),
@@ -109,6 +112,16 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 			if _, err := d.rconExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
 				return BroadcastResult{}, fmt.Errorf("send rcon to %s: %w", target.Ref, err)
 			}
+		} else if transport == BroadcastTransportTelnet {
+			if d.telnetExecutor == nil {
+				return BroadcastResult{}, fmt.Errorf("telnet transport is not configured")
+			}
+			if target.RCONAddress == "" || target.RCONPassword == "" {
+				return BroadcastResult{}, fmt.Errorf("telnet address and password are required for %s", target.Ref)
+			}
+			if err := d.telnetExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
+				return BroadcastResult{}, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+			}
 		} else {
 			if d.commander == nil {
 				return BroadcastResult{}, fmt.Errorf("docker control is not configured")
@@ -133,7 +146,7 @@ func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest, transpor
 	refs := normalizeContainerRefs(append(append(append([]string{req.ContainerID}, req.ContainerIDs...), req.ContainerName), req.ContainerNames...)...)
 	requestGame := strings.TrimSpace(req.Game)
 	switch transport {
-	case BroadcastTransportRCON:
+	case BroadcastTransportRCON, BroadcastTransportTelnet:
 		if len(refs) > 0 {
 			return buildRCONTargetsFromRefs(refs, requestGame, req.RCON, d.defaultRCONByRef), nil
 		}
@@ -308,6 +321,8 @@ func normalizeBroadcastTransport(value BroadcastTransport) BroadcastTransport {
 	switch strings.ToLower(strings.TrimSpace(string(value))) {
 	case string(BroadcastTransportRCON):
 		return BroadcastTransportRCON
+	case string(BroadcastTransportTelnet):
+		return BroadcastTransportTelnet
 	default:
 		return BroadcastTransportConsole
 	}
