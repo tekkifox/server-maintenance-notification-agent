@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -55,8 +56,10 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 		return "", err
 	}
 	if server == nil {
+		log.Printf("pelican api output: uuid=%s server=<nil>", containerRef)
 		return "", nil
 	}
+	log.Printf("pelican api output: uuid=%s server=%q identifier=%q name=%q nest=%d egg=%d", containerRef, server.UUID, server.Identifier, server.Name, server.Nest, server.Egg)
 
 	// Pelican uses the egg name as the authoritative game label for matching.
 	game, err := r.lookupEggName(ctx, server.Nest, server.Egg)
@@ -64,8 +67,10 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 		return "", err
 	}
 	if strings.TrimSpace(game) == "" {
+		log.Printf("pelican api output: uuid=%s egg=%d/%d name=<empty>", containerRef, server.Nest, server.Egg)
 		return "", nil
 	}
+	log.Printf("pelican api output: uuid=%s egg=%d/%d name=%q", containerRef, server.Nest, server.Egg, game)
 
 	r.cache.Store(containerRef, game)
 
@@ -121,6 +126,7 @@ func (r *Resolver) lookupServerByUUID(ctx context.Context, uuid string) (*applic
 		return nil, fmt.Errorf("request pelican servers: %w", err)
 	}
 	defer resp.Body.Close()
+	log.Printf("pelican api request: method=GET path=%s status=%s", endpoint.Path, resp.Status)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("pelican servers request failed: %s", resp.Status)
@@ -131,12 +137,16 @@ func (r *Resolver) lookupServerByUUID(ctx context.Context, uuid string) (*applic
 		return nil, fmt.Errorf("decode pelican servers response: %w", err)
 	}
 	if len(payload.Data) == 0 {
+		log.Printf("pelican api output: uuid=%s servers=[]", uuid)
 		return nil, nil
 	}
 
 	if server := matchServer(uuid, payload.Data); server != nil {
+		log.Printf("pelican api output: uuid=%s servers=%d matched=true", uuid, len(payload.Data))
 		return server, nil
 	}
+
+	log.Printf("pelican api output: uuid=%s servers=%d matched=false using_first=true", uuid, len(payload.Data))
 
 	return &payload.Data[0].Attributes, nil
 }
@@ -173,6 +183,7 @@ func (r *Resolver) lookupEggName(ctx context.Context, nestID, eggID int) (string
 		return "", fmt.Errorf("request pelican egg: %w", err)
 	}
 	defer resp.Body.Close()
+	log.Printf("pelican api request: method=GET path=%s status=%s", endpoint.Path, resp.Status)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("pelican egg request failed: %s", resp.Status)
@@ -183,5 +194,7 @@ func (r *Resolver) lookupEggName(ctx context.Context, nestID, eggID int) (string
 		return "", fmt.Errorf("decode pelican egg response: %w", err)
 	}
 
-	return strings.TrimSpace(payload.Attributes.Name), nil
+	name := strings.TrimSpace(payload.Attributes.Name)
+	log.Printf("pelican api output: nest=%d egg=%d name=%q", nestID, eggID, name)
+	return name, nil
 }
