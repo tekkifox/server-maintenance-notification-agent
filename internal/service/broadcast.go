@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -47,6 +48,10 @@ var ignoredGameTokens = map[string]struct{}{
 	"editions":  {},
 	"game":      {},
 }
+
+var broadcastTemplateKeys = sortedBroadcastTemplateKeys()
+var broadcastGameAliases = buildBroadcastGameAliases()
+var broadcastGameAliasKeys = sortedBroadcastGameAliasKeys()
 
 type broadcastTemplateData struct {
 	Message string
@@ -237,7 +242,7 @@ func buildBroadcastCommand(game, override, message string) (string, string, erro
 	}
 
 	logGameMatching(game)
-	tpl, ok, matchedKey := lookupBroadcastTemplate(game)
+	tpl, ok, matchedKey, matchedBy := lookupBroadcastTemplate(game)
 	if !ok {
 		log.Printf("game match: no template match raw=%q using=default", game)
 		tpl = broadcastTemplate{Game: strings.TrimSpace(game), Template: "say {{consoleMessage .Message}}"}
@@ -245,7 +250,7 @@ func buildBroadcastCommand(game, override, message string) (string, string, erro
 			tpl.Game = "default"
 		}
 	} else {
-		log.Printf("game match: matched raw=%q key=%q template_game=%q", game, matchedKey, tpl.Game)
+		log.Printf("game match: matched raw=%q key=%q via=%s template_game=%q", game, matchedKey, matchedBy, tpl.Game)
 	}
 
 	command, err := executeBroadcastTemplate(tpl.Template, message)
@@ -339,8 +344,8 @@ func (d *DockerCommander) shouldFallbackToDocker(game string) bool {
 	if len(d.dockerFallbackGames) == 0 {
 		return true
 	}
-	for _, key := range normalizeGameNameCandidates(game) {
-		if _, ok := d.dockerFallbackGames[key]; ok {
+	for key := range d.dockerFallbackGames {
+		if gameMatchesNormalizedKey(game, key) {
 			return true
 		}
 	}
@@ -562,13 +567,25 @@ func normalizeGameNameCandidates(game string) []string {
 	return candidates
 }
 
-func lookupBroadcastTemplate(game string) (broadcastTemplate, bool, string) {
+func lookupBroadcastTemplate(game string) (broadcastTemplate, bool, string, string) {
 	for _, key := range normalizeGameNameCandidates(game) {
 		if tpl, ok := broadcastTemplates[key]; ok {
-			return tpl, true, key
+			return tpl, true, key, "exact"
 		}
 	}
-	return broadcastTemplate{}, false, ""
+
+	for _, candidate := range normalizeGameNameCandidates(game) {
+		if key, alias, ok := matchBroadcastGameAlias(candidate); ok {
+			return broadcastTemplates[key], true, key, "alias=" + alias
+		}
+	}
+
+	for _, candidate := range normalizeGameNameCandidates(game) {
+		if key, ok := matchBroadcastTemplateKey(candidate); ok {
+			return broadcastTemplates[key], true, key, "contains"
+		}
+	}
+	return broadcastTemplate{}, false, "", ""
 }
 
 func logGameMatching(game string) {
@@ -578,6 +595,86 @@ func logGameMatching(game string) {
 		return
 	}
 	log.Printf("game match: raw=%q normalized=%v", game, candidates)
+}
+
+func gameMatchesNormalizedKey(game, key string) bool {
+	key = strings.TrimSpace(strings.ToLower(key))
+	if key == "" {
+		return false
+	}
+	for _, candidate := range normalizeGameNameCandidates(game) {
+		if candidate == key || strings.Contains(candidate, key) || strings.Contains(key, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchBroadcastTemplateKey(candidate string) (string, bool) {
+	for _, key := range broadcastTemplateKeys {
+		if candidate == key || strings.Contains(candidate, key) || strings.Contains(key, candidate) {
+			return key, true
+		}
+	}
+	return "", false
+}
+
+func matchBroadcastGameAlias(candidate string) (string, string, bool) {
+	for _, alias := range broadcastGameAliasKeys {
+		if candidate == alias || strings.Contains(candidate, alias) || strings.Contains(alias, candidate) {
+			return broadcastGameAliases[alias], alias, true
+		}
+	}
+	return "", "", false
+}
+
+func sortedBroadcastTemplateKeys() []string {
+	keys := make([]string, 0, len(broadcastTemplates))
+	for key := range broadcastTemplates {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if len(keys[i]) != len(keys[j]) {
+			return len(keys[i]) > len(keys[j])
+		}
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
+func sortedBroadcastGameAliasKeys() []string {
+	keys := make([]string, 0, len(broadcastGameAliases))
+	for key := range broadcastGameAliases {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if len(keys[i]) != len(keys[j]) {
+			return len(keys[i]) > len(keys[j])
+		}
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
+func buildBroadcastGameAliases() map[string]string {
+	aliases := map[string]string{
+		"paper":         "minecraft",
+		"papermc":       "minecraft",
+		"purpur":        "minecraft",
+		"spigot":        "minecraft",
+		"bukkit":        "minecraft",
+		"vanilla":       "minecraft",
+		"forge":         "minecraft",
+		"fabric":        "minecraft",
+		"neoforge":      "minecraft",
+		"papermcserver": "minecraft",
+	}
+
+	normalized := make(map[string]string, len(aliases))
+	for alias, key := range aliases {
+		normalized[normalizeGameName(alias)] = key
+	}
+	return normalized
 }
 
 func quoteConsoleMessage(value string) string {

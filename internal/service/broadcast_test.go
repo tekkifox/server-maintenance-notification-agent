@@ -20,6 +20,20 @@ func TestBuildBroadcastCommand(t *testing.T) {
 			wantGame: "minecraft",
 		},
 		{
+			name:     "minecraft java server",
+			game:     "Minecraft Java Server",
+			message:  "Server restart in 10 minutes",
+			wantCmd:  "say \"Server restart in 10 minutes\"",
+			wantGame: "minecraft",
+		},
+		{
+			name:     "papermc alias",
+			game:     "PaperMC",
+			message:  "Server restart in 10 minutes",
+			wantCmd:  "say \"Server restart in 10 minutes\"",
+			wantGame: "minecraft",
+		},
+		{
 			name:     "unturned",
 			game:     "Unturned",
 			message:  "Server restart in 10 minutes",
