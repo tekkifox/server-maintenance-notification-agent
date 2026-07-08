@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -16,14 +17,14 @@ type broadcastTemplate struct {
 }
 
 var broadcastTemplates = map[string]broadcastTemplate{
-	"minecraft":      {Game: "minecraft", Template: "say {{.Message}}"},
-	"vrising":        {Game: "vrising", Template: "announce {{.Message}}"},
-	"7dtd":           {Game: "7 days to die", Template: "say {{.Message}}"},
-	"7daystodie":     {Game: "7 days to die", Template: "say {{.Message}}"},
-	"palworld":       {Game: "palworld", Template: "Broadcast {{.Message}}"},
-	"terraria":       {Game: "terraria", Template: "say {{.Message}}"},
-	"rust":           {Game: "rust", Template: "say {{.Message}}"},
-	"projectzomboid": {Game: "project zomboid", Template: "servermsg {{.Message}}"},
+	"minecraft":      {Game: "minecraft", Template: "say {{consoleMessage .Message}}"},
+	"vrising":        {Game: "vrising", Template: "announce {{consoleMessage .Message}}"},
+	"7dtd":           {Game: "7 days to die", Template: "say {{consoleMessage .Message}}"},
+	"7daystodie":     {Game: "7 days to die", Template: "say {{consoleMessage .Message}}"},
+	"palworld":       {Game: "palworld", Template: "Broadcast {{consoleMessage .Message}}"},
+	"terraria":       {Game: "terraria", Template: "say {{consoleMessage .Message}}"},
+	"rust":           {Game: "rust", Template: "say {{consoleMessage .Message}}"},
+	"projectzomboid": {Game: "project zomboid", Template: "servermsg {{consoleMessage .Message}}"},
 	"factorio":       {Game: "factorio", Template: "game.print({{quoteLua .Message}})"},
 }
 
@@ -122,7 +123,7 @@ func buildBroadcastCommand(game, override, message string) (string, string, erro
 	key := normalizeGameName(game)
 	tpl, ok := broadcastTemplates[key]
 	if !ok {
-		tpl = broadcastTemplate{Game: strings.TrimSpace(game), Template: "say {{.Message}}"}
+		tpl = broadcastTemplate{Game: strings.TrimSpace(game), Template: "say {{consoleMessage .Message}}"}
 		if tpl.Game == "" {
 			tpl.Game = "default"
 		}
@@ -218,7 +219,8 @@ func normalizeContainerRefs(values ...string) []string {
 
 func executeBroadcastTemplate(raw string, message string) (string, error) {
 	tpl, err := template.New("broadcast").Funcs(template.FuncMap{
-		"quoteLua": quoteLuaString,
+		"consoleMessage": quoteConsoleMessage,
+		"quoteLua":       quoteLuaString,
 	}).Parse(raw)
 	if err != nil {
 		return "", fmt.Errorf("parse broadcast template: %w", err)
@@ -246,6 +248,17 @@ func normalizeGameName(game string) string {
 		}
 	}
 	return b.String()
+}
+
+func quoteConsoleMessage(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if len(strings.Fields(value)) <= 1 {
+		return value
+	}
+	return strconv.Quote(value)
 }
 
 func quoteLuaString(value string) string {

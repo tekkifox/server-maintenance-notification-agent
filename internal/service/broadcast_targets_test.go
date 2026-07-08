@@ -43,7 +43,7 @@ func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 	if recorder.calls[0].containerRef != "alpha" || recorder.calls[1].containerRef != "beta" {
 		t.Fatalf("unexpected container targets: %+v", recorder.calls)
 	}
-	if recorder.calls[0].command != "say Restart in 10 minutes" || recorder.calls[1].command != "say Restart in 10 minutes" {
+	if recorder.calls[0].command != "say \"Restart in 10 minutes\"" || recorder.calls[1].command != "say \"Restart in 10 minutes\"" {
 		t.Fatalf("unexpected command broadcast: %+v", recorder.calls)
 	}
 }
@@ -89,10 +89,10 @@ func TestBroadcastUsesDefaultContainerNamesAndGames(t *testing.T) {
 	if recorder.calls[0].containerRef != "minecraft-server" || recorder.calls[1].containerRef != "vrising-server" {
 		t.Fatalf("unexpected container targets: %+v", recorder.calls)
 	}
-	if recorder.calls[0].command != "say Maintenance starts in 10 minutes" {
+	if recorder.calls[0].command != "say \"Maintenance starts in 10 minutes\"" {
 		t.Fatalf("unexpected minecraft command: %q", recorder.calls[0].command)
 	}
-	if recorder.calls[1].command != "announce Maintenance starts in 10 minutes" {
+	if recorder.calls[1].command != "announce \"Maintenance starts in 10 minutes\"" {
 		t.Fatalf("unexpected vrising command: %q", recorder.calls[1].command)
 	}
 }
@@ -115,10 +115,10 @@ func TestBroadcastUsesExplicitContainerNames(t *testing.T) {
 	if recorder.calls[0].containerRef != "minecraft-server" || recorder.calls[1].containerRef != "vrising-server" {
 		t.Fatalf("unexpected container targets: %+v", recorder.calls)
 	}
-	if recorder.calls[0].command != "say Hello from the API" {
+	if recorder.calls[0].command != "say \"Hello from the API\"" {
 		t.Fatalf("unexpected minecraft command: %q", recorder.calls[0].command)
 	}
-	if recorder.calls[1].command != "say Hello from the API" {
+	if recorder.calls[1].command != "say \"Hello from the API\"" {
 		t.Fatalf("unexpected fallback command: %q", recorder.calls[1].command)
 	}
 }
@@ -141,7 +141,7 @@ func TestBroadcastUsesSingleContainerName(t *testing.T) {
 	if recorder.calls[0].containerRef != "minecraft-server" {
 		t.Fatalf("unexpected container target: %+v", recorder.calls)
 	}
-	if recorder.calls[0].command != "say Hello from singular name" {
+	if recorder.calls[0].command != "say \"Hello from singular name\"" {
 		t.Fatalf("unexpected command: %q", recorder.calls[0].command)
 	}
 }
@@ -163,7 +163,7 @@ func TestBroadcastMessageOnlyUsesSay(t *testing.T) {
 	if recorder.calls[0].containerRef != "alpha" {
 		t.Fatalf("unexpected container target: %+v", recorder.calls)
 	}
-	if recorder.calls[0].command != "say Message only" {
+	if recorder.calls[0].command != "say \"Message only\"" {
 		t.Fatalf("unexpected command: %q", recorder.calls[0].command)
 	}
 }

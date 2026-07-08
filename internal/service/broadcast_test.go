@@ -16,14 +16,14 @@ func TestBuildBroadcastCommand(t *testing.T) {
 			name:     "minecraft",
 			game:     "Minecraft",
 			message:  "Server restart in 10 minutes",
-			wantCmd:  "say Server restart in 10 minutes",
+			wantCmd:  "say \"Server restart in 10 minutes\"",
 			wantGame: "minecraft",
 		},
 		{
 			name:     "vrising",
 			game:     "V Rising",
 			message:  "Base raid window closed",
-			wantCmd:  "announce Base raid window closed",
+			wantCmd:  "announce \"Base raid window closed\"",
 			wantGame: "vrising",
 		},
 		{
