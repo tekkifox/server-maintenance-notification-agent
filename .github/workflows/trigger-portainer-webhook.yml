@@ -1,13 +1,6 @@
 name: Trigger Portainer webhook
 
 on:
-  workflow_run:
-    workflows:
-      - Publish Docker image
-    branches:
-      - main
-    types:
-      - completed
   workflow_dispatch:
 
 permissions:
@@ -16,7 +9,6 @@ permissions:
 jobs:
   trigger:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Trigger Portainer redeploy
