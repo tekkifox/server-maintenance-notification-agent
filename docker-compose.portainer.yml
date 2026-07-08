@@ -1,6 +1,6 @@
 services:
   notification-agent:
-    image: ghcr.io/tekkifox/server-maintenance-notification-agent:latest
+    image: ghcr.io/${GHCR_OWNER:-tekkifox}/${GHCR_REPOSITORY:-server-maintenance-notification-agent}:${GHCR_TAG:-latest}
     env_file:
       - path: stack.env
         required: false
