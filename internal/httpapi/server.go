@@ -1,11 +1,14 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"server-maintenance-notification-agent/internal/service"
@@ -35,11 +38,59 @@ func (s *Server) Routes() http.Handler {
 func requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("received request: %s %s from %s body_error=%v", r.Method, r.URL.Path, r.RemoteAddr, err)
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unable to read request body"})
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
 		rw := &loggingResponseWriter{ResponseWriter: w, status: http.StatusOK}
-		log.Printf("received request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		log.Printf("received request: %s %s from %s%s", r.Method, r.URL.Path, r.RemoteAddr, describeRequestParameters(r, body))
 		next.ServeHTTP(rw, r)
 		log.Printf("completed request: %s %s status=%d duration=%s", r.Method, r.URL.Path, rw.status, time.Since(start).Round(time.Millisecond))
 	})
+}
+
+func describeRequestParameters(r *http.Request, body []byte) string {
+	parts := make([]string, 0, 2)
+	if query := strings.TrimSpace(r.URL.RawQuery); query != "" {
+		parts = append(parts, "query="+query)
+	}
+	if len(body) > 0 {
+		parts = append(parts, "body="+summarizeRequestBody(r.Header.Get("Content-Type"), body))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " params{" + strings.Join(parts, " ") + "}"
+}
+
+func summarizeRequestBody(contentType string, body []byte) string {
+	const maxLoggedBodyBytes = 4096
+
+	trimmed := body
+	truncated := false
+	if len(trimmed) > maxLoggedBodyBytes {
+		trimmed = trimmed[:maxLoggedBodyBytes]
+		truncated = true
+	}
+
+	if strings.Contains(strings.ToLower(contentType), "json") {
+		var compact bytes.Buffer
+		if err := json.Compact(&compact, trimmed); err == nil {
+			if truncated {
+				return compact.String() + "..."
+			}
+			return compact.String()
+		}
+	}
+
+	text := string(trimmed)
+	if truncated {
+		return text + "..."
+	}
+	return text
 }
 
 type loggingResponseWriter struct {
