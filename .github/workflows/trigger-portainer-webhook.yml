@@ -1,0 +1,34 @@
+name: Trigger Portainer webhook
+
+on:
+  workflow_run:
+    workflows:
+      - Publish Docker image
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger Portainer redeploy
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK_URL" ]; then
+            echo "PORTAINER_WEBHOOK_URL secret is not set"
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            --retry 3 \
+            --retry-delay 5 \
+            -X POST "$PORTAINER_WEBHOOK_URL"
