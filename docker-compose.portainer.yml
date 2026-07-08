@@ -1,0 +1,11 @@
+services:
+  notification-agent:
+    image: ghcr.io/tekkifox/server-maintenance-notification-agent:latest
+    env_file:
+      - path: stack.env
+        required: false
+    environment:
+      HTTP_ADDR: :8080
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

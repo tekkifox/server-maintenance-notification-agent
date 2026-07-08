@@ -1,0 +1,124 @@
+name: github-deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment name
+        required: false
+        default: production
+      state:
+        description: Deployment state sent to Discord
+        required: false
+        default: success
+      channel_ids:
+        description: Optional comma-separated Discord channel IDs override
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Go app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...
+
+  notify:
+    name: Send deploy webhook
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - name: Build deployment payload
+        env:
+          DEPLOY_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          DEPLOY_STATE: ${{ github.event.inputs.state }}
+        run: |
+          set -eu
+
+          if [ -z "${DEPLOY_ENVIRONMENT:-}" ]; then
+            DEPLOY_ENVIRONMENT="production"
+          fi
+
+          if [ -z "${DEPLOY_STATE:-}" ]; then
+            DEPLOY_STATE="success"
+          fi
+
+          cat > payload.json <<EOF
+          {
+            "action": "completed",
+            "repository": {
+              "full_name": "${GITHUB_REPOSITORY}",
+              "name": "${GITHUB_REPOSITORY##*/}",
+              "html_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+            },
+            "sender": {
+              "login": "${GITHUB_ACTOR}"
+            },
+            "deployment": {
+              "environment": "${DEPLOY_ENVIRONMENT}",
+              "description": "GitHub Actions deployment notification",
+              "task": "deploy",
+              "creator": {
+                "login": "${GITHUB_ACTOR}"
+              }
+            },
+            "deployment_status": {
+              "state": "${DEPLOY_STATE}",
+              "description": "GitHub Actions deployment notification",
+              "environment": "${DEPLOY_ENVIRONMENT}",
+              "environment_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}",
+              "target_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            },
+            "workflow_run": {
+              "name": "github-deploy",
+              "status": "completed",
+              "conclusion": "${DEPLOY_STATE}",
+              "head_branch": "${GITHUB_REF_NAME}",
+              "html_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            }
+          }
+          EOF
+
+      - name: Post deploy event
+        env:
+          GITHUB_DEPLOY_WEBHOOK_URL: ${{ secrets.GITHUB_DEPLOY_WEBHOOK_URL }}
+          CHANNEL_IDS: ${{ github.event.inputs.channel_ids }}
+        run: |
+          set -eu
+
+          if [ -z "${GITHUB_DEPLOY_WEBHOOK_URL:-}" ]; then
+            echo "GITHUB_DEPLOY_WEBHOOK_URL secret is required" >&2
+            exit 1
+          fi
+
+          url="${GITHUB_DEPLOY_WEBHOOK_URL}"
+          if [ -n "${CHANNEL_IDS:-}" ]; then
+            encoded=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["CHANNEL_IDS"]))')
+            url="${url}?channel_ids=${encoded}"
+          fi
+
+          curl -fsS \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H 'X-GitHub-Event: deployment_status' \
+            --data @payload.json \
+            "${url}"
