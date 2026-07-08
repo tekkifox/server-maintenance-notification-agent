@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
+	"time"
 
 	"server-maintenance-notification-agent/internal/service"
 )
@@ -27,7 +29,27 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/docker/containers/{container_id}/command", s.dockerCommand)
 	mux.HandleFunc("POST /v1/docker/containers/{container_id}/broadcast", s.dockerBroadcast)
 	mux.HandleFunc("POST /v1/docker/broadcast", s.dockerBroadcast)
-	return mux
+	return requestLogger(mux)
+}
+
+func requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rw := &loggingResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		log.Printf("received request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		next.ServeHTTP(rw, r)
+		log.Printf("completed request: %s %s status=%d duration=%s", r.Method, r.URL.Path, rw.status, time.Since(start).Round(time.Millisecond))
+	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *loggingResponseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 }
 
 func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
