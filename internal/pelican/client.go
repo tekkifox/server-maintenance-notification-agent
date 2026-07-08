@@ -50,7 +50,7 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 		return value.(string), nil
 	}
 
-	server, err := r.lookupServer(ctx, containerRef)
+	server, err := r.lookupServerByUUID(ctx, containerRef)
 	if err != nil {
 		return "", err
 	}
@@ -68,15 +68,6 @@ func (r *Resolver) ResolveGame(ctx context.Context, containerRef string) (string
 	}
 
 	r.cache.Store(containerRef, game)
-	if server.Name != "" {
-		r.cache.Store(server.Name, game)
-	}
-	if server.Identifier != "" {
-		r.cache.Store(server.Identifier, game)
-	}
-	if server.UUID != "" {
-		r.cache.Store(server.UUID, game)
-	}
 
 	return game, nil
 }
@@ -105,12 +96,17 @@ type applicationEggAttributes struct {
 	Name string `json:"name"`
 }
 
-func (r *Resolver) lookupServer(ctx context.Context, ref string) (*applicationServerAttributes, error) {
+func (r *Resolver) lookupServerByUUID(ctx context.Context, uuid string) (*applicationServerAttributes, error) {
+	uuid = strings.TrimSpace(uuid)
+	if uuid == "" {
+		return nil, nil
+	}
+
 	endpoint := *r.baseURL
 	endpoint.Path = path.Join(strings.TrimRight(endpoint.Path, "/"), "api/application/servers")
 	query := endpoint.Query()
 	query.Set("per_page", "100")
-	query.Set("filter[name]", ref)
+	query.Set("filter[uuid]", uuid)
 	endpoint.RawQuery = query.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
@@ -138,7 +134,7 @@ func (r *Resolver) lookupServer(ctx context.Context, ref string) (*applicationSe
 		return nil, nil
 	}
 
-	if server := matchServer(ref, payload.Data); server != nil {
+	if server := matchServer(uuid, payload.Data); server != nil {
 		return server, nil
 	}
 

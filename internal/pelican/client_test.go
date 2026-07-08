@@ -19,7 +19,7 @@ func TestResolveGameFromApplicationAPI(t *testing.T) {
 
 		switch r.URL.Path {
 		case "/api/application/servers":
-			if got := r.URL.Query().Get("filter[name]"); got != "minecraft-server" {
+			if got := r.URL.Query().Get("filter[uuid]"); got != "uuid-1" {
 				t.Fatalf("unexpected filter name: %q", got)
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -52,7 +52,7 @@ func TestResolveGameFromApplicationAPI(t *testing.T) {
 		t.Fatalf("unexpected resolver error: %v", err)
 	}
 
-	game, err := resolver.ResolveGame(context.Background(), "minecraft-server")
+	game, err := resolver.ResolveGame(context.Background(), "uuid-1")
 	if err != nil {
 		t.Fatalf("unexpected resolve error: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestResolveGameFromApplicationAPI(t *testing.T) {
 		t.Fatalf("expected 2 API calls, got %d", len(requests))
 	}
 
-	game, err = resolver.ResolveGame(context.Background(), "minecraft-server")
+	game, err = resolver.ResolveGame(context.Background(), "uuid-1")
 	if err != nil {
 		t.Fatalf("unexpected cached resolve error: %v", err)
 	}
