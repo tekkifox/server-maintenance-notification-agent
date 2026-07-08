@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
-	github.com/moby/moby/api v1.55.0
+	github.com/gorcon/rcon v1.4.0
 	github.com/moby/moby/client v0.5.0
 )
 
@@ -20,6 +20,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/moby/api v1.55.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

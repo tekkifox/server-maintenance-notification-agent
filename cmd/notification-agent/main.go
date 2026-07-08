@@ -14,6 +14,7 @@ import (
 	"server-maintenance-notification-agent/internal/discord"
 	"server-maintenance-notification-agent/internal/dockercontrol"
 	"server-maintenance-notification-agent/internal/httpapi"
+	"server-maintenance-notification-agent/internal/rconcontrol"
 	"server-maintenance-notification-agent/internal/service"
 )
 
@@ -57,15 +58,18 @@ func main() {
 	}
 
 	notifier := service.NewNotifier(discordClient, cfg.DefaultChannelIDs)
-	var dockerCommander *service.DockerCommander
-	if dockerClient != nil {
-		dockerCommander = service.NewDockerCommander(
-			dockerClient,
-			cfg.DefaultDockerContainerIDs,
-			cfg.DefaultDockerContainerNames,
-			cfg.DefaultDockerContainerGames,
-		)
-	}
+	rconClient := rconcontrol.NewClient()
+	dockerCommander := service.NewDockerCommander(
+		dockerClient,
+		rconClient,
+		cfg.DefaultDockerContainerIDs,
+		cfg.DefaultDockerContainerNames,
+		cfg.DefaultDockerContainerGames,
+		cfg.DefaultRCONContainerNames,
+		cfg.DefaultRCONContainerGames,
+		cfg.DefaultRCONContainerAddresses,
+		cfg.DefaultRCONContainerPasswords,
+	)
 	server := httpapi.NewServer(notifier, dockerCommander)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

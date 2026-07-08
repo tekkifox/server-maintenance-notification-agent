@@ -77,12 +77,11 @@ func summarizeRequestBody(contentType string, body []byte) string {
 	}
 
 	if strings.Contains(strings.ToLower(contentType), "json") {
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, trimmed); err == nil {
+		if redacted, err := redactJSONBody(trimmed); err == nil {
 			if truncated {
-				return compact.String() + "..."
+				return redacted + "..."
 			}
-			return compact.String()
+			return redacted
 		}
 	}
 
@@ -91,6 +90,51 @@ func summarizeRequestBody(contentType string, body []byte) string {
 		return text + "..."
 	}
 	return text
+}
+
+func redactJSONBody(body []byte) (string, error) {
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return "", err
+	}
+
+	redactJSONValue(value)
+	redacted, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, redacted); err != nil {
+		return string(redacted), nil
+	}
+	return compact.String(), nil
+}
+
+func redactJSONValue(value any) {
+	switch v := value.(type) {
+	case map[string]any:
+		for key, child := range v {
+			if isSensitiveJSONKey(key) {
+				v[key] = "[redacted]"
+				continue
+			}
+			redactJSONValue(child)
+		}
+	case []any:
+		for _, child := range v {
+			redactJSONValue(child)
+		}
+	}
+}
+
+func isSensitiveJSONKey(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "password", "token", "secret", "rcon_password":
+		return true
+	default:
+		return false
+	}
 }
 
 type loggingResponseWriter struct {
