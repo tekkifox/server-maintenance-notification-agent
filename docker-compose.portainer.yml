@@ -3,9 +3,8 @@ services:
     image: ghcr.io/${GHCR_OWNER:-tekkifox}/${GHCR_REPOSITORY:-server-maintenance-notification-agent}:${GHCR_TAG:-latest}
     env_file:
       - path: stack.env
-        required: false
-    environment:
-      HTTP_ADDR: :8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped

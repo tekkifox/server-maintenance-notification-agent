@@ -8,9 +8,12 @@ import (
 )
 
 type Config struct {
-	HTTPAddr          string
-	DiscordBotToken   string
-	DefaultChannelIDs []string
+	HTTPAddr                    string
+	DiscordBotToken             string
+	DefaultChannelIDs           []string
+	DefaultDockerContainerIDs   []string
+	DefaultDockerContainerNames []string
+	DefaultDockerContainerGames []string
 }
 
 func LoadEnvFile(path string) error {
@@ -63,12 +66,12 @@ func LoadEnvFile(path string) error {
 
 func FromEnv() (Config, error) {
 	cfg := Config{
-		HTTPAddr:        envOrDefault("HTTP_ADDR", ":8080"),
-		DiscordBotToken: strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN")),
-		DefaultChannelIDs: parseChannelIDs(
-			os.Getenv("DISCORD_DEFAULT_CHANNEL_IDS"),
-			os.Getenv("DISCORD_DEFAULT_CHANNEL_ID"),
-		),
+		HTTPAddr:                    envOrDefault("HTTP_ADDR", ":8080"),
+		DiscordBotToken:             strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN")),
+		DefaultChannelIDs:           parseDelimitedList(os.Getenv("DISCORD_DEFAULT_CHANNEL_IDS"), os.Getenv("DISCORD_DEFAULT_CHANNEL_ID")),
+		DefaultDockerContainerIDs:   parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_IDS"), os.Getenv("DOCKER_DEFAULT_CONTAINER_ID")),
+		DefaultDockerContainerNames: parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_NAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_NAME")),
+		DefaultDockerContainerGames: parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_GAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_GAME")),
 	}
 
 	if cfg.DiscordBotToken == "" {
@@ -78,7 +81,7 @@ func FromEnv() (Config, error) {
 	return cfg, nil
 }
 
-func parseChannelIDs(values ...string) []string {
+func parseDelimitedList(values ...string) []string {
 	seen := make(map[string]struct{})
 	result := make([]string, 0, len(values))
 

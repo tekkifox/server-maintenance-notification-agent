@@ -12,6 +12,7 @@ import (
 
 	"server-maintenance-notification-agent/internal/config"
 	"server-maintenance-notification-agent/internal/discord"
+	"server-maintenance-notification-agent/internal/dockercontrol"
 	"server-maintenance-notification-agent/internal/httpapi"
 	"server-maintenance-notification-agent/internal/service"
 )
@@ -43,8 +44,29 @@ func main() {
 		log.Fatalf("open discord client: %v", err)
 	}
 
+	dockerClient, err := dockercontrol.NewClient()
+	if err != nil {
+		log.Printf("docker control unavailable: %v", err)
+	}
+	if dockerClient != nil {
+		defer func() {
+			if closeErr := dockerClient.Close(); closeErr != nil {
+				log.Printf("close docker client: %v", closeErr)
+			}
+		}()
+	}
+
 	notifier := service.NewNotifier(discordClient, cfg.DefaultChannelIDs)
-	server := httpapi.NewServer(notifier)
+	var dockerCommander *service.DockerCommander
+	if dockerClient != nil {
+		dockerCommander = service.NewDockerCommander(
+			dockerClient,
+			cfg.DefaultDockerContainerIDs,
+			cfg.DefaultDockerContainerNames,
+			cfg.DefaultDockerContainerGames,
+		)
+	}
+	server := httpapi.NewServer(notifier, dockerCommander)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           server.Routes(),
