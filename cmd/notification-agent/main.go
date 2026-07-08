@@ -75,7 +75,7 @@ func main() {
 	)
 	dockerCommander.SetDockerFallbackGameTypes(cfg.DefaultDockerFallbackGameTypes)
 	if cfg.PelicanAPIURL != "" && cfg.PelicanAPIToken != "" {
-		resolver, err := pelican.NewResolver(cfg.PelicanAPIURL, cfg.PelicanAPIToken)
+		resolver, err := pelican.NewResolver(cfg.PelicanAPIURL, cfg.PelicanAPIToken, cfg.PelicanLogAPIOutput)
 		if err != nil {
 			log.Printf("pelican game resolver unavailable: %v", err)
 		} else {

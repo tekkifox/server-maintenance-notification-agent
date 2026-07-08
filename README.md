@@ -59,6 +59,7 @@ The app reads the variables below. List values can be comma-separated. Single-va
 
 - `PELICAN_API_URL`: Base URL of the Pelican panel, for example `https://panel.example.com`.
 - `PELICAN_API_TOKEN`: Pelican application API token used to look up server and egg metadata.
+- `PELICAN_LOG_API_OUTPUT`: Set to `true` to log Pelican API requests and lookup output.
 - When both values are set, the service resolves game names from Pelican before choosing a broadcast template.
 
 ### RCON Defaults

@@ -47,7 +47,7 @@ func TestResolveGameFromApplicationAPI(t *testing.T) {
 	}))
 	defer server.Close()
 
-	resolver, err := NewResolver(server.URL, "token")
+	resolver, err := NewResolver(server.URL, "token", false)
 	if err != nil {
 		t.Fatalf("unexpected resolver error: %v", err)
 	}
