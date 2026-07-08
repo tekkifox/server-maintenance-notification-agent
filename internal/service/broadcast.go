@@ -14,6 +14,10 @@ import (
 	"server-maintenance-notification-agent/internal/telnetcontrol"
 )
 
+type GameResolver interface {
+	ResolveGame(ctx context.Context, containerRef string) (string, error)
+}
+
 type broadcastTemplate struct {
 	Game     string
 	Template string
@@ -34,6 +38,16 @@ var broadcastTemplates = map[string]broadcastTemplate{
 	"factorio":       {Game: "factorio", Template: "game.print({{quoteLua .Message}})"},
 }
 
+var ignoredGameTokens = map[string]struct{}{
+	"dedicated": {},
+	"server":    {},
+	"servers":   {},
+	"headless":  {},
+	"edition":   {},
+	"editions":  {},
+	"game":      {},
+}
+
 type broadcastTemplateData struct {
 	Message string
 }
@@ -42,14 +56,16 @@ type DockerCommander struct {
 	commander             dockercontrol.Commander
 	rconExecutor          rconcontrol.Executor
 	telnetExecutor        telnetcontrol.Executor
+	gameResolver          GameResolver
 	defaultConsoleTargets []BroadcastTarget
 	defaultRCONTargets    []BroadcastTarget
 	defaultConsoleByRef   map[string]BroadcastTarget
 	defaultRCONByRef      map[string]BroadcastTarget
+	dockerFallbackGames   map[string]struct{}
 }
 
-func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultContainerGames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
-	consoleTargets := buildDefaultBroadcastTargets(defaultContainerIDs, defaultContainerNames, defaultContainerGames)
+func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
+	consoleTargets := buildDefaultBroadcastTargets(defaultContainerIDs, defaultContainerNames)
 	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
 	return &DockerCommander{
 		commander:             commander,
@@ -60,6 +76,14 @@ func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcont
 		defaultConsoleByRef:   buildBroadcastTargetLookup(consoleTargets),
 		defaultRCONByRef:      buildBroadcastTargetLookup(rconTargets),
 	}
+}
+
+func (d *DockerCommander) SetGameResolver(resolver GameResolver) {
+	d.gameResolver = resolver
+}
+
+func (d *DockerCommander) SetDockerFallbackGameTypes(values []string) {
+	d.dockerFallbackGames = buildGameAllowlist(values)
 }
 
 func (d *DockerCommander) Send(ctx context.Context, req DockerCommandRequest) (DockerCommandResult, error) {
@@ -103,6 +127,15 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 
 	deliveries := make([]BroadcastDelivery, 0, len(targets))
 	for _, target := range targets {
+		if strings.TrimSpace(target.Game) == "" && d.gameResolver != nil {
+			if resolvedGame, err := d.gameResolver.ResolveGame(ctx, target.Ref); err == nil {
+				if strings.TrimSpace(resolvedGame) != "" {
+					target.Game = resolvedGame
+				}
+			} else {
+				log.Printf("pelican game lookup failed for ref=%s: %v", target.Ref, err)
+			}
+		}
 		command, resolvedGame, err := buildBroadcastCommand(target.Game, req.Command, message)
 		if err != nil {
 			return BroadcastResult{}, err
@@ -138,18 +171,21 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 				return BroadcastResult{}, fmt.Errorf("telnet address and password are required for %s", target.Ref)
 			}
 			if err := d.telnetExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
-				if fallbackTarget, ok := d.defaultConsoleByRef[target.Ref]; ok {
-					if d.commander == nil {
-						return BroadcastResult{}, fmt.Errorf("telnet to %s failed and docker control is not configured: %w", target.Ref, err)
-					}
-					log.Printf("broadcast fallback: telnet failed for ref=%s, retrying docker transport", target.Ref)
-					if fallbackErr := d.commander.SendCommand(ctx, fallbackTarget.Ref, command); fallbackErr != nil {
-						return BroadcastResult{}, fmt.Errorf("telnet to %s failed: %v; docker fallback to %s failed: %w", target.Ref, err, fallbackTarget.Ref, fallbackErr)
-					}
-					actualTransport = BroadcastTransportDocker
-				} else {
+				if !d.shouldFallbackToDocker(resolvedGame) {
 					return BroadcastResult{}, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
 				}
+				fallbackTarget, ok := d.defaultConsoleByRef[target.Ref]
+				if !ok {
+					return BroadcastResult{}, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+				}
+				if d.commander == nil {
+					return BroadcastResult{}, fmt.Errorf("telnet to %s failed and docker control is not configured: %w", target.Ref, err)
+				}
+				log.Printf("broadcast fallback: telnet failed for ref=%s, retrying docker transport", target.Ref)
+				if fallbackErr := d.commander.SendCommand(ctx, fallbackTarget.Ref, command); fallbackErr != nil {
+					return BroadcastResult{}, fmt.Errorf("telnet to %s failed: %v; docker fallback to %s failed: %w", target.Ref, err, fallbackTarget.Ref, fallbackErr)
+				}
+				actualTransport = BroadcastTransportDocker
 			}
 		} else {
 			if d.commander == nil {
@@ -198,8 +234,7 @@ func buildBroadcastCommand(game, override, message string) (string, string, erro
 		return override, strings.TrimSpace(game), nil
 	}
 
-	key := normalizeGameName(game)
-	tpl, ok := broadcastTemplates[key]
+	tpl, ok := lookupBroadcastTemplate(game)
 	if !ok {
 		tpl = broadcastTemplate{Game: strings.TrimSpace(game), Template: "say {{consoleMessage .Message}}"}
 		if tpl.Game == "" {
@@ -215,7 +250,7 @@ func buildBroadcastCommand(game, override, message string) (string, string, erro
 	return command, tpl.Game, nil
 }
 
-func buildDefaultBroadcastTargets(ids, names, games []string) []BroadcastTarget {
+func buildDefaultBroadcastTargets(ids, names []string) []BroadcastTarget {
 	targets := make([]BroadcastTarget, 0, len(ids)+len(names))
 	seen := make(map[string]struct{})
 
@@ -236,12 +271,8 @@ func buildDefaultBroadcastTargets(ids, names, games []string) []BroadcastTarget 
 		add(id, "")
 	}
 
-	for i, name := range normalizeContainerRefs(names...) {
-		game := ""
-		if i < len(games) {
-			game = strings.TrimSpace(games[i])
-		}
-		add(name, game)
+	for _, name := range normalizeContainerRefs(names...) {
+		add(name, "")
 	}
 
 	return targets
@@ -280,6 +311,34 @@ func mergeDefaultTargetsPreferRCON(consoleTargets, rconTargets []BroadcastTarget
 	}
 
 	return merged
+}
+
+func buildGameAllowlist(values []string) map[string]struct{} {
+	if len(values) == 0 {
+		return nil
+	}
+	allowlist := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		for _, key := range normalizeGameNameCandidates(value) {
+			allowlist[key] = struct{}{}
+		}
+	}
+	if len(allowlist) == 0 {
+		return nil
+	}
+	return allowlist
+}
+
+func (d *DockerCommander) shouldFallbackToDocker(game string) bool {
+	if len(d.dockerFallbackGames) == 0 {
+		return true
+	}
+	for _, key := range normalizeGameNameCandidates(game) {
+		if _, ok := d.dockerFallbackGames[key]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func buildDefaultRCONTargets(names, games, transports, addresses, passwords []string) []BroadcastTarget {
@@ -456,6 +515,54 @@ func normalizeGameName(game string) string {
 		}
 	}
 	return b.String()
+}
+
+func normalizeGameNameCandidates(game string) []string {
+	base := normalizeGameName(game)
+	if base == "" {
+		return nil
+	}
+
+	candidates := make([]string, 0, 2)
+	seen := make(map[string]struct{}, 2)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		seen[value] = struct{}{}
+		candidates = append(candidates, value)
+	}
+
+	add(base)
+
+	tokens := strings.FieldsFunc(strings.ToLower(strings.TrimSpace(game)), func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+	})
+	filtered := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		if _, ignored := ignoredGameTokens[token]; ignored {
+			continue
+		}
+		filtered = append(filtered, token)
+	}
+	if len(filtered) > 0 {
+		add(strings.Join(filtered, ""))
+	}
+
+	return candidates
+}
+
+func lookupBroadcastTemplate(game string) (broadcastTemplate, bool) {
+	for _, key := range normalizeGameNameCandidates(game) {
+		if tpl, ok := broadcastTemplates[key]; ok {
+			return tpl, true
+		}
+	}
+	return broadcastTemplate{}, false
 }
 
 func quoteConsoleMessage(value string) string {

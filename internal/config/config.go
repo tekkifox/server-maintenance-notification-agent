@@ -10,10 +10,12 @@ import (
 type Config struct {
 	HTTPAddr                       string
 	DiscordBotToken                string
+	PelicanAPIURL                  string
+	PelicanAPIToken                string
 	DefaultChannelIDs              []string
 	DefaultDockerContainerIDs      []string
 	DefaultDockerContainerNames    []string
-	DefaultDockerContainerGames    []string
+	DefaultDockerFallbackGameTypes []string
 	DefaultRCONContainerNames      []string
 	DefaultRCONContainerGames      []string
 	DefaultRCONContainerTransports []string
@@ -73,9 +75,11 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		HTTPAddr:                       envOrDefault("HTTP_ADDR", ":8080"),
 		DiscordBotToken:                strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN")),
+		PelicanAPIURL:                  strings.TrimSpace(os.Getenv("PELICAN_API_URL")),
+		PelicanAPIToken:                strings.TrimSpace(os.Getenv("PELICAN_API_TOKEN")),
 		DefaultChannelIDs:              parseDelimitedList(os.Getenv("DISCORD_DEFAULT_CHANNEL_IDS"), os.Getenv("DISCORD_DEFAULT_CHANNEL_ID")),
 		DefaultDockerContainerNames:    parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_NAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_NAME")),
-		DefaultDockerContainerGames:    parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_GAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_GAME")),
+		DefaultDockerFallbackGameTypes: parseDelimitedList(os.Getenv("DOCKER_FALLBACK_GAME_TYPES"), os.Getenv("DOCKER_FALLBACK_GAME_TYPE")),
 		DefaultRCONContainerNames:      parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_NAMES"), os.Getenv("RCON_DEFAULT_CONTAINER_NAME")),
 		DefaultRCONContainerGames:      parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_GAMES"), os.Getenv("RCON_DEFAULT_CONTAINER_GAME")),
 		DefaultRCONContainerTransports: parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_TRANSPORTS"), os.Getenv("RCON_DEFAULT_CONTAINER_TRANSPORT")),

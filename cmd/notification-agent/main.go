@@ -14,6 +14,7 @@ import (
 	"server-maintenance-notification-agent/internal/discord"
 	"server-maintenance-notification-agent/internal/dockercontrol"
 	"server-maintenance-notification-agent/internal/httpapi"
+	"server-maintenance-notification-agent/internal/pelican"
 	"server-maintenance-notification-agent/internal/rconcontrol"
 	"server-maintenance-notification-agent/internal/service"
 	"server-maintenance-notification-agent/internal/telnetcontrol"
@@ -67,13 +68,21 @@ func main() {
 		telnetClient,
 		cfg.DefaultDockerContainerIDs,
 		cfg.DefaultDockerContainerNames,
-		cfg.DefaultDockerContainerGames,
 		cfg.DefaultRCONContainerNames,
 		cfg.DefaultRCONContainerGames,
 		cfg.DefaultRCONContainerTransports,
 		cfg.DefaultRCONContainerAddresses,
 		cfg.DefaultRCONContainerPasswords,
 	)
+	dockerCommander.SetDockerFallbackGameTypes(cfg.DefaultDockerFallbackGameTypes)
+	if cfg.PelicanAPIURL != "" && cfg.PelicanAPIToken != "" {
+		resolver, err := pelican.NewResolver(cfg.PelicanAPIURL, cfg.PelicanAPIToken)
+		if err != nil {
+			log.Printf("pelican game resolver unavailable: %v", err)
+		} else {
+			dockerCommander.SetGameResolver(resolver)
+		}
+	}
 	server := httpapi.NewServer(notifier, dockerCommander)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

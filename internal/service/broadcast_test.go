@@ -48,6 +48,20 @@ func TestBuildBroadcastCommand(t *testing.T) {
 			wantGame: "vrising",
 		},
 		{
+			name:     "vrising dedicated server alias",
+			game:     "V Rising Dedicated Server",
+			message:  "Base raid window closed",
+			wantCmd:  "announce \"Base raid window closed\"",
+			wantGame: "vrising",
+		},
+		{
+			name:     "palworld dedicated server alias",
+			game:     "Palworld Dedicated Server",
+			message:  "Server restart in 10 minutes",
+			wantCmd:  "Broadcast \"Server restart in 10 minutes\"",
+			wantGame: "palworld",
+		},
+		{
 			name:     "factorio",
 			game:     "Factorio",
 			message:  `Hello "world"`,
