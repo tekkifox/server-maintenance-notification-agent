@@ -65,14 +65,14 @@ The app reads the variables below. List values can be comma-separated. Single-va
 
 - `RCON_DEFAULT_CONTAINER_NAMES`: Default container names for RCON targets.
 - `RCON_DEFAULT_CONTAINER_NAME`: Single-value alias for `RCON_DEFAULT_CONTAINER_NAMES`.
-- `RCON_DEFAULT_CONTAINER_GAMES`: Game names aligned by position with `RCON_DEFAULT_CONTAINER_NAMES`.
-- `RCON_DEFAULT_CONTAINER_GAME`: Single-value alias for `RCON_DEFAULT_CONTAINER_GAMES`.
 - `RCON_DEFAULT_CONTAINER_TRANSPORTS`: Transport type for each RCON target. Supported values: `rcon`, `telnet`, `docker`.
 - `RCON_DEFAULT_CONTAINER_TRANSPORT`: Single-value alias for `RCON_DEFAULT_CONTAINER_TRANSPORTS`.
 - `RCON_DEFAULT_CONTAINER_ADDRESSES`: RCON or telnet host:port values aligned by position with `RCON_DEFAULT_CONTAINER_NAMES`.
 - `RCON_DEFAULT_CONTAINER_ADDRESS`: Single-value alias for `RCON_DEFAULT_CONTAINER_ADDRESSES`.
 - `RCON_DEFAULT_CONTAINER_PASSWORDS`: Passwords aligned by position with `RCON_DEFAULT_CONTAINER_NAMES`.
 - `RCON_DEFAULT_CONTAINER_PASSWORD`: Single-value alias for `RCON_DEFAULT_CONTAINER_PASSWORDS`.
+
+RCON targets also resolve game names from Pelican egg metadata when `PELICAN_API_URL` and `PELICAN_API_TOKEN` are set.
 
 ### Docker Runtime
 
@@ -207,7 +207,6 @@ PELICAN_API_TOKEN=your-pelican-api-token
 DOCKER_DEFAULT_CONTAINER_NAMES=minecraft-server,vrising-server
 DOCKER_FALLBACK_GAME_TYPES=minecraft,vrising,7dtd,terraria,unturned,starbound,satisfactory,palworld,rust,projectzomboid,factorio
 RCON_DEFAULT_CONTAINER_NAMES=minecraft-server
-RCON_DEFAULT_CONTAINER_GAMES=minecraft
 RCON_DEFAULT_CONTAINER_TRANSPORTS=rcon
 RCON_DEFAULT_CONTAINER_ADDRESSES=127.0.0.1:27015
 RCON_DEFAULT_CONTAINER_PASSWORDS=change-me

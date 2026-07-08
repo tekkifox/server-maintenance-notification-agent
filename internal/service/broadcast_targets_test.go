@@ -75,7 +75,7 @@ func (r staticGameResolver) ResolveGame(_ context.Context, containerRef string) 
 
 func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Game:    "Minecraft",
@@ -104,7 +104,7 @@ func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 
 func TestBroadcastDryRunDoesNotSend(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		DryRun:  true,
@@ -135,7 +135,7 @@ func TestBroadcastDryRunDoesNotSend(t *testing.T) {
 func TestBroadcastUsesRCONTransport(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}
-	commander := NewDockerCommander(console, rcon, nil, nil, []string{"minecraft-server"}, []string{"minecraft-server"}, []string{"minecraft"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+	commander := NewDockerCommander(console, rcon, nil, nil, []string{"minecraft-server"}, []string{"minecraft-server"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Transport: BroadcastTransportRCON,
@@ -167,7 +167,7 @@ func TestBroadcastUsesRCONTransport(t *testing.T) {
 
 func TestBroadcastUsesDockerTransportWhenConfigured(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, nil, []string{"docker-server"}, []string{"minecraft"}, []string{"docker"}, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, nil, []string{"docker-server"}, []string{"docker"}, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Server restart in 10 minutes",
@@ -196,7 +196,7 @@ func TestBroadcastUsesDockerTransportWhenConfigured(t *testing.T) {
 func TestBroadcastPrefersRCONWhenNamesOverlap(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}
-	commander := NewDockerCommander(console, rcon, nil, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"minecraft"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+	commander := NewDockerCommander(console, rcon, nil, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Restart in 10 minutes",
@@ -223,7 +223,7 @@ func TestBroadcastUsesMixedDefaultTransports(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}
 	telnet := &recordingTelnetExecutor{}
-	commander := NewDockerCommander(console, rcon, telnet, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"vrising", "vrising"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
+	commander := NewDockerCommander(console, rcon, telnet, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Server restart in 10 minutes",
@@ -265,7 +265,7 @@ func TestBroadcastFiltersByExplicitTransport(t *testing.T) {
 	console := &recordingCommander{}
 	rcon := &recordingRCONExecutor{}
 	telnet := &recordingTelnetExecutor{}
-	commander := NewDockerCommander(console, rcon, telnet, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"vrising", "vrising"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
+	commander := NewDockerCommander(console, rcon, telnet, nil, nil, []string{"vrising-rcon", "vrising-telnet"}, []string{"rcon", "telnet"}, []string{"127.0.0.1:27015", "127.0.0.1:9876"}, []string{"secret", "telnet-pass"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Transport: BroadcastTransportRCON,
@@ -294,7 +294,7 @@ func TestBroadcastFiltersByExplicitTransport(t *testing.T) {
 
 func TestBroadcastPrefersExplicitContainerIDs(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil, nil)
 
 	_, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerIDs: []string{"gamma", "delta"},
@@ -313,9 +313,9 @@ func TestBroadcastPrefersExplicitContainerIDs(t *testing.T) {
 	}
 }
 
-func TestBroadcastUsesDefaultContainerNamesAndGames(t *testing.T) {
+func TestBroadcastUsesDefaultContainerNames(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server", "vrising-server"}, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server", "vrising-server"}, nil, nil, nil, nil)
 	commander.SetGameResolver(staticGameResolver{
 		"minecraft-server": "minecraft",
 		"vrising-server":   "vrising",
@@ -347,7 +347,7 @@ func TestBroadcastUsesDefaultContainerNamesAndGames(t *testing.T) {
 
 func TestBroadcastUsesExplicitContainerNames(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerNames: []string{"minecraft-server", "vrising-server"},
@@ -373,7 +373,7 @@ func TestBroadcastUsesExplicitContainerNames(t *testing.T) {
 
 func TestBroadcastUsesSingleContainerName(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"minecraft-server"}, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		ContainerName: "minecraft-server",
@@ -396,7 +396,7 @@ func TestBroadcastUsesSingleContainerName(t *testing.T) {
 
 func TestBroadcastMessageOnlyUsesSay(t *testing.T) {
 	recorder := &recordingCommander{}
-	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil, nil)
+	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil)
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
 		Message: "Message only",
@@ -419,7 +419,7 @@ func TestBroadcastMessageOnlyUsesSay(t *testing.T) {
 func TestBroadcastUsesTelnetTransport(t *testing.T) {
 	console := &recordingCommander{}
 	telnet := &recordingTelnetExecutor{}
-	commander := NewDockerCommander(console, nil, telnet, nil, []string{"vrising-server"}, []string{"vrising-server"}, []string{"vrising"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"vrising-server"}, []string{"vrising-server"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
 	commander.SetGameResolver(staticGameResolver{"vrising-server": "vrising"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
@@ -450,7 +450,7 @@ func TestBroadcastUsesTelnetTransport(t *testing.T) {
 func TestBroadcastFallsBackToDockerAfterTelnetFailure(t *testing.T) {
 	console := &recordingCommander{}
 	telnet := &failingTelnetExecutor{err: context.DeadlineExceeded}
-	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"minecraft"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
 	commander.SetGameResolver(staticGameResolver{"shared-server": "minecraft"})
 
 	result, err := commander.Broadcast(context.Background(), BroadcastRequest{
@@ -480,7 +480,7 @@ func TestBroadcastFallsBackToDockerAfterTelnetFailure(t *testing.T) {
 func TestBroadcastDoesNotFallbackWhenGameNotAllowed(t *testing.T) {
 	console := &recordingCommander{}
 	telnet := &failingTelnetExecutor{err: context.DeadlineExceeded}
-	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"vrising"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
 	commander.SetGameResolver(staticGameResolver{"shared-server": "vrising"})
 	commander.SetDockerFallbackGameTypes([]string{"minecraft"})
 
@@ -509,7 +509,7 @@ func TestBroadcastUsesDockerFallbackGameTypesFromEnv(t *testing.T) {
 
 	console := &recordingCommander{}
 	telnet := &failingTelnetExecutor{err: context.DeadlineExceeded}
-	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"minecraft"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
+	commander := NewDockerCommander(console, nil, telnet, nil, []string{"shared-server"}, []string{"shared-server"}, []string{"telnet"}, []string{"127.0.0.1:9876"}, []string{"telnet-pass"})
 	commander.SetGameResolver(staticGameResolver{"shared-server": "minecraft"})
 	commander.SetDockerFallbackGameTypes(cfg.DefaultDockerFallbackGameTypes)
 

@@ -17,7 +17,6 @@ type Config struct {
 	DefaultDockerContainerNames    []string
 	DefaultDockerFallbackGameTypes []string
 	DefaultRCONContainerNames      []string
-	DefaultRCONContainerGames      []string
 	DefaultRCONContainerTransports []string
 	DefaultRCONContainerAddresses  []string
 	DefaultRCONContainerPasswords  []string
@@ -81,7 +80,6 @@ func FromEnv() (Config, error) {
 		DefaultDockerContainerNames:    parseDelimitedList(os.Getenv("DOCKER_DEFAULT_CONTAINER_NAMES"), os.Getenv("DOCKER_DEFAULT_CONTAINER_NAME")),
 		DefaultDockerFallbackGameTypes: parseDelimitedList(os.Getenv("DOCKER_FALLBACK_GAME_TYPES"), os.Getenv("DOCKER_FALLBACK_GAME_TYPE")),
 		DefaultRCONContainerNames:      parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_NAMES"), os.Getenv("RCON_DEFAULT_CONTAINER_NAME")),
-		DefaultRCONContainerGames:      parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_GAMES"), os.Getenv("RCON_DEFAULT_CONTAINER_GAME")),
 		DefaultRCONContainerTransports: parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_TRANSPORTS"), os.Getenv("RCON_DEFAULT_CONTAINER_TRANSPORT")),
 		DefaultRCONContainerAddresses:  parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_ADDRESSES"), os.Getenv("RCON_DEFAULT_CONTAINER_ADDRESS")),
 		DefaultRCONContainerPasswords:  parseDelimitedList(os.Getenv("RCON_DEFAULT_CONTAINER_PASSWORDS"), os.Getenv("RCON_DEFAULT_CONTAINER_PASSWORD")),

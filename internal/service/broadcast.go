@@ -69,9 +69,9 @@ type DockerCommander struct {
 	dockerFallbackGames   map[string]struct{}
 }
 
-func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
+func NewDockerCommander(commander dockercontrol.Commander, rconExecutor rconcontrol.Executor, telnetExecutor telnetcontrol.Executor, defaultContainerIDs, defaultContainerNames, defaultRCONContainerNames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords []string) *DockerCommander {
 	consoleTargets := buildDefaultBroadcastTargets(defaultContainerIDs, defaultContainerNames)
-	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerGames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
+	rconTargets := buildDefaultRCONTargets(defaultRCONContainerNames, defaultRCONContainerTransports, defaultRCONContainerAddresses, defaultRCONContainerPasswords)
 	return &DockerCommander{
 		commander:             commander,
 		rconExecutor:          rconExecutor,
@@ -352,7 +352,7 @@ func (d *DockerCommander) shouldFallbackToDocker(game string) bool {
 	return false
 }
 
-func buildDefaultRCONTargets(names, games, transports, addresses, passwords []string) []BroadcastTarget {
+func buildDefaultRCONTargets(names, transports, addresses, passwords []string) []BroadcastTarget {
 	targets := make([]BroadcastTarget, 0, len(names))
 	seen := make(map[string]struct{})
 	for i, name := range normalizeContainerRefs(names...) {
@@ -361,9 +361,6 @@ func buildDefaultRCONTargets(names, games, transports, addresses, passwords []st
 		}
 		seen[name] = struct{}{}
 		target := BroadcastTarget{Ref: name, Transport: BroadcastTransportDocker}
-		if i < len(games) {
-			target.Game = strings.TrimSpace(games[i])
-		}
 		if i < len(transports) {
 			target.Transport = normalizeConfiguredConnectionTransport(transports[i])
 		}
