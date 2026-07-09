@@ -29,7 +29,7 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{cli: cli, outputTimeout: 10 * time.Second}, nil
+	return &Client{cli: cli, outputTimeout: 1 * time.Second}, nil
 }
 
 func (c *Client) Close() error {
