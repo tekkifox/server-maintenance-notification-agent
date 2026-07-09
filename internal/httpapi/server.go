@@ -24,6 +24,10 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+type DiscordWebhookPayload struct {
+	Content string `json:"content"`
+}
+
 type Server struct {
 	notifier        *service.Notifier
 	dockerCommander *service.DockerCommander
@@ -40,6 +44,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/console/command", s.dockerCommand)
 	mux.HandleFunc("POST /v1/message/broadcast", s.dockerBroadcast)
 	mux.HandleFunc("POST /v1/console/broadcast", s.dockerBroadcast)
+	mux.HandleFunc("POST /v1/webhooks/discord", s.discordWebhook)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	return requestLogger(mux)
 }
@@ -190,6 +195,64 @@ func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON body"})
 		return
 	}
+	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
+		req.DryRun = dryRun
+	}
+
+	result, err := s.notifier.Trigger(r.Context(), req)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusRequestTimeout
+		}
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, result)
+}
+
+// discordWebhook godoc
+// @Summary Receive a Discord webhook message
+// @Description Receives a Discord-compatible webhook message and forwards/broadcasts it to Discord channels.
+// @Tags webhooks
+// @Accept json
+// @Produce json
+// @Param channel_id query string false "Optional Discord channel ID"
+// @Param channel_ids query string false "Optional comma-separated Discord channel IDs"
+// @Param dry_run query bool false "Dry run request"
+// @Param request body DiscordWebhookPayload true "Discord Webhook payload"
+// @Success 202 {object} service.TriggerResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 408 {object} ErrorResponse
+// @Router /v1/webhooks/discord [post]
+func (s *Server) discordWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	var payload DiscordWebhookPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON body"})
+		return
+	}
+
+	var channelIDs []string
+	if cid := r.URL.Query().Get("channel_id"); cid != "" {
+		channelIDs = append(channelIDs, cid)
+	}
+	if cids := r.URL.Query().Get("channel_ids"); cids != "" {
+		for _, id := range strings.Split(cids, ",") {
+			channelIDs = append(channelIDs, strings.TrimSpace(id))
+		}
+	}
+
+	req := service.TriggerRequest{
+		Message:    payload.Content,
+		ChannelIDs: channelIDs,
+	}
+
 	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
 		req.DryRun = dryRun
 	}

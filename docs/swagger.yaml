@@ -1,5 +1,10 @@
 basePath: /
 definitions:
+  internal_httpapi.DiscordWebhookPayload:
+    properties:
+      content:
+        type: string
+    type: object
   internal_httpapi.ErrorResponse:
     properties:
       error:
@@ -267,6 +272,49 @@ paths:
       summary: Broadcast a message command to consoles
       tags:
       - console
+  /v1/webhooks/discord:
+    post:
+      consumes:
+      - application/json
+      description: Receives a Discord-compatible webhook message and forwards/broadcasts
+        it to Discord channels.
+      parameters:
+      - description: Optional Discord channel ID
+        in: query
+        name: channel_id
+        type: string
+      - description: Optional comma-separated Discord channel IDs
+        in: query
+        name: channel_ids
+        type: string
+      - description: Dry run request
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Discord Webhook payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_httpapi.DiscordWebhookPayload'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.TriggerResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "408":
+          description: Request Timeout
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+      summary: Receive a Discord webhook message
+      tags:
+      - webhooks
 schemes:
 - http
 swagger: "2.0"

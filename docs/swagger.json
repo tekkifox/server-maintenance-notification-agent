@@ -198,9 +198,81 @@
                     }
                 }
             }
+        },
+        "/v1/webhooks/discord": {
+            "post": {
+                "description": "Receives a Discord-compatible webhook message and forwards/broadcasts it to Discord channels.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Receive a Discord webhook message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Optional Discord channel ID",
+                        "name": "channel_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional comma-separated Discord channel IDs",
+                        "name": "channel_ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Dry run request",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Discord Webhook payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.DiscordWebhookPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.TriggerResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "internal_httpapi.DiscordWebhookPayload": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_httpapi.ErrorResponse": {
             "type": "object",
             "properties": {
