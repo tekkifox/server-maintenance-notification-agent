@@ -77,13 +77,29 @@ definitions:
         type: string
       container_id:
         type: string
+      container_ids:
+        items:
+          type: string
+        type: array
+      container_name:
+        type: string
+      container_names:
+        items:
+          type: string
+        type: array
+      dry_run:
+        type: boolean
+      rcon:
+        $ref: '#/definitions/server-maintenance-notification-agent_internal_service.RCONRequest'
     type: object
   server-maintenance-notification-agent_internal_service.DockerCommandResult:
     properties:
-      command:
-        type: string
-      container_id:
-        type: string
+      deliveries:
+        items:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastDelivery'
+        type: array
+      dry_run:
+        type: boolean
       sent:
         type: boolean
     type: object
@@ -180,9 +196,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends a command directly to a container through the Docker API.
+      description: Sends the provided command directly to one or more containers without
+        templating.
       parameters:
-      - description: Docker command request
+      - description: Dry run request
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Raw command request
         in: body
         name: request
         required: true
@@ -207,7 +228,7 @@ paths:
           description: Service Unavailable
           schema:
             $ref: '#/definitions/internal_httpapi.ErrorResponse'
-      summary: Send a raw container command
+      summary: Send a raw console command
       tags:
       - console
   /v1/discord/broadcast:

@@ -95,7 +95,7 @@ const docTemplate = `{
         },
         "/v1/console/command": {
             "post": {
-                "description": "Sends a command directly to a container through the Docker API.",
+                "description": "Sends the provided command directly to one or more containers without templating.",
                 "consumes": [
                     "application/json"
                 ],
@@ -105,10 +105,16 @@ const docTemplate = `{
                 "tags": [
                     "console"
                 ],
-                "summary": "Send a raw container command",
+                "summary": "Send a raw console command",
                 "parameters": [
                     {
-                        "description": "Docker command request",
+                        "type": "boolean",
+                        "description": "Dry run request",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Raw command request",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -314,17 +320,41 @@ const docTemplate = `{
                 },
                 "container_id": {
                     "type": "string"
+                },
+                "container_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "container_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "rcon": {
+                    "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.RCONRequest"
                 }
             }
         },
         "server-maintenance-notification-agent_internal_service.DockerCommandResult": {
             "type": "object",
             "properties": {
-                "command": {
-                    "type": "string"
+                "deliveries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastDelivery"
+                    }
                 },
-                "container_id": {
-                    "type": "string"
+                "dry_run": {
+                    "type": "boolean"
                 },
                 "sent": {
                     "type": "boolean"

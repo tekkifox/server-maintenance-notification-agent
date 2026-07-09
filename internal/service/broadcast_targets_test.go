@@ -102,6 +102,60 @@ func TestBroadcastUsesDefaultContainerIDs(t *testing.T) {
 	}
 }
 
+func TestCommandUsesDefaultContainerNames(t *testing.T) {
+	recorder := &recordingCommander{}
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"alpha", "beta"}, nil, nil, nil, nil)
+
+	result, err := commander.Send(context.Background(), DockerCommandRequest{
+		Command: "status",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !result.Sent {
+		t.Fatalf("expected sent to be true")
+	}
+	if len(result.Deliveries) != 2 {
+		t.Fatalf("expected 2 deliveries, got %d", len(result.Deliveries))
+	}
+	if len(recorder.calls) != 2 {
+		t.Fatalf("expected 2 docker calls, got %d", len(recorder.calls))
+	}
+	if recorder.calls[0].command != "status" || recorder.calls[1].command != "status" {
+		t.Fatalf("unexpected commands: %+v", recorder.calls)
+	}
+}
+
+func TestCommandDryRunDoesNotSend(t *testing.T) {
+	recorder := &recordingCommander{}
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"alpha"}, nil, nil, nil, nil)
+
+	result, err := commander.Send(context.Background(), DockerCommandRequest{
+		DryRun:  true,
+		Command: "status",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !result.DryRun {
+		t.Fatalf("expected dry run result")
+	}
+	if result.Sent {
+		t.Fatalf("expected sent=false on dry run")
+	}
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(recorder.calls) != 0 {
+		t.Fatalf("expected no docker calls, got %d", len(recorder.calls))
+	}
+	if result.Deliveries[0].Command != "status" || result.Deliveries[0].Sent {
+		t.Fatalf("unexpected dry-run delivery: %+v", result.Deliveries[0])
+	}
+}
+
 func TestBroadcastDryRunDoesNotSend(t *testing.T) {
 	recorder := &recordingCommander{}
 	commander := NewDockerCommander(recorder, nil, nil, []string{"alpha"}, nil, nil, nil, nil, nil)
@@ -161,6 +215,32 @@ func TestBroadcastUsesRCONTransport(t *testing.T) {
 		t.Fatalf("unexpected rcon password: %+v", rcon.calls[0])
 	}
 	if rcon.calls[0].command != "say \"Restart in 10 minutes\"" {
+		t.Fatalf("unexpected rcon command: %+v", rcon.calls[0])
+	}
+}
+
+func TestCommandUsesRCONTransport(t *testing.T) {
+	console := &recordingCommander{}
+	rcon := &recordingRCONExecutor{}
+	commander := NewDockerCommander(console, rcon, nil, nil, nil, []string{"minecraft-server"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+
+	result, err := commander.Send(context.Background(), DockerCommandRequest{
+		Command: "status",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if len(console.calls) != 0 {
+		t.Fatalf("expected no console calls, got %d", len(console.calls))
+	}
+	if len(rcon.calls) != 1 {
+		t.Fatalf("expected 1 rcon call, got %d", len(rcon.calls))
+	}
+	if rcon.calls[0].command != "status" {
 		t.Fatalf("unexpected rcon command: %+v", rcon.calls[0])
 	}
 }

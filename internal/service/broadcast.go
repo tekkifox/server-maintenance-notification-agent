@@ -92,23 +92,48 @@ func (d *DockerCommander) SetDockerFallbackGameTypes(values []string) {
 }
 
 func (d *DockerCommander) Send(ctx context.Context, req DockerCommandRequest) (DockerCommandResult, error) {
-	if d.commander == nil {
-		return DockerCommandResult{}, fmt.Errorf("docker control is not configured")
-	}
-	containerID := strings.TrimSpace(req.ContainerID)
-	command := strings.TrimSpace(req.Command)
-	if containerID == "" {
-		return DockerCommandResult{}, fmt.Errorf("container_id is required")
-	}
-	if command == "" {
+	if strings.TrimSpace(req.Command) == "" {
 		return DockerCommandResult{}, fmt.Errorf("command is required")
 	}
+	command := req.Command
 
-	if err := d.commander.SendCommand(ctx, containerID, command); err != nil {
+	targets, err := d.resolveCommandTargets(req)
+	if err != nil {
 		return DockerCommandResult{}, err
 	}
+	if len(targets) == 0 {
+		return DockerCommandResult{}, fmt.Errorf("container_id, container_ids, container_name, or container_names is required")
+	}
 
-	return DockerCommandResult{ContainerID: containerID, Command: command, Sent: true}, nil
+	log.Printf("console command dispatch: targets=%d dry_run=%t", len(targets), req.DryRun)
+	deliveries := make([]BroadcastDelivery, 0, len(targets))
+	for _, target := range targets {
+		log.Printf("console command target hit: transport=%s ref=%s command=%q", target.Transport, target.Ref, command)
+		if req.DryRun {
+			deliveries = append(deliveries, BroadcastDelivery{
+				Transport:    normalizeTargetTransport(target.Transport),
+				ContainerRef: target.Ref,
+				Command:      command,
+				Sent:         false,
+			})
+			continue
+		}
+		if err := d.deliverCommand(ctx, target, command); err != nil {
+			return DockerCommandResult{}, err
+		}
+		deliveries = append(deliveries, BroadcastDelivery{
+			Transport:    normalizeTargetTransport(target.Transport),
+			ContainerRef: target.Ref,
+			Command:      command,
+			Sent:         true,
+		})
+	}
+
+	if req.DryRun {
+		return DockerCommandResult{Deliveries: deliveries, DryRun: true, Sent: false}, nil
+	}
+
+	return DockerCommandResult{Deliveries: deliveries, Sent: true}, nil
 }
 
 func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (BroadcastResult, error) {
@@ -217,6 +242,42 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 	return BroadcastResult{Deliveries: deliveries, Sent: true}, nil
 }
 
+func (d *DockerCommander) deliverCommand(ctx context.Context, target BroadcastTarget, command string) error {
+	targetTransport := normalizeTargetTransport(target.Transport)
+	switch targetTransport {
+	case BroadcastTransportRCON:
+		if d.rconExecutor == nil {
+			return fmt.Errorf("rcon transport is not configured")
+		}
+		if target.RCONAddress == "" || target.RCONPassword == "" {
+			return fmt.Errorf("rcon address and password are required for %s", target.Ref)
+		}
+		if _, err := d.rconExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
+			return fmt.Errorf("send rcon to %s: %w", target.Ref, err)
+		}
+		return nil
+	case BroadcastTransportTelnet:
+		if d.telnetExecutor == nil {
+			return fmt.Errorf("telnet transport is not configured")
+		}
+		if target.RCONAddress == "" || target.RCONPassword == "" {
+			return fmt.Errorf("telnet address and password are required for %s", target.Ref)
+		}
+		if err := d.telnetExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
+			return fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+		}
+		return nil
+	default:
+		if d.commander == nil {
+			return fmt.Errorf("docker control is not configured")
+		}
+		if err := d.commander.SendCommand(ctx, target.Ref, command); err != nil {
+			return fmt.Errorf("send to %s: %w", target.Ref, err)
+		}
+		return nil
+	}
+}
+
 func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest) ([]BroadcastTarget, error) {
 	refs := normalizeContainerRefs(append(append(append([]string{req.ContainerID}, req.ContainerIDs...), req.ContainerName), req.ContainerNames...)...)
 	requestGame := strings.TrimSpace(req.Game)
@@ -232,6 +293,15 @@ func (d *DockerCommander) resolveBroadcastTargets(req BroadcastRequest) ([]Broad
 		targets[i].Game = requestGame
 	}
 	return targets, nil
+}
+
+func (d *DockerCommander) resolveCommandTargets(req DockerCommandRequest) ([]BroadcastTarget, error) {
+	refs := normalizeContainerRefs(append(append(append([]string{req.ContainerID}, req.ContainerIDs...), req.ContainerName), req.ContainerNames...)...)
+	if len(refs) > 0 {
+		return buildTargetsForRefs(refs, "", req.RCON, d.defaultConsoleByRef, d.defaultRCONByRef), nil
+	}
+
+	return mergeDefaultTargetsPreferRCON(d.defaultConsoleTargets, d.defaultRCONTargets), nil
 }
 
 func buildBroadcastCommand(game, override, message string) (string, string, error) {

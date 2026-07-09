@@ -137,28 +137,37 @@ curl -X POST 'http://localhost:8080/v1/discord/broadcast?dry_run=true' \
 
 ### `POST /v1/console/command`
 
-Sends a raw command to a container through the Docker API.
+Sends a raw command to one or more containers without game templating.
 
 Request body:
 
 ```json
 {
-  "container_id": "minecraft-server",
-  "command": "say Server restarting in 10 minutes"
+  "container_names": ["minecraft-server", "vrising-server"],
+  "command": "status",
+  "dry_run": true
 }
 ```
 
 Fields:
 
 - `container_id`: Required container ID or name.
+- `container_id`: Optional single container ID or name.
+- `container_ids`: Optional list of container IDs.
 - `command`: Required command to send.
+- `container_name`: Optional single container name.
+- `container_names`: Optional list of container names.
+- `dry_run`: Optional boolean. When `true`, the service resolves targets but does not send the command.
+- `rcon`: Optional override object with `address` and `password`.
+
+If no container target is provided, the service uses the configured default console and RCON targets.
 
 Example:
 
 ```bash
-curl -X POST http://localhost:8080/v1/console/command \
+curl -X POST 'http://localhost:8080/v1/console/command?dry_run=true' \
   -H 'Content-Type: application/json' \
-  -d '{"container_id":"minecraft-server","command":"say Server restarting in 10 minutes"}'
+  -d '{"container_names":["minecraft-server"],"command":"status"}'
 ```
 
 ### `POST /v1/console/broadcast`

@@ -1,14 +1,19 @@
 package service
 
 type DockerCommandRequest struct {
-	ContainerID string `json:"container_id"`
-	Command     string `json:"command"`
+	ContainerID    string       `json:"container_id"`
+	ContainerIDs   []string     `json:"container_ids,omitempty"`
+	ContainerName  string       `json:"container_name,omitempty"`
+	ContainerNames []string     `json:"container_names,omitempty"`
+	DryRun         bool         `json:"dry_run,omitempty"`
+	Command        string       `json:"command"`
+	RCON           *RCONRequest `json:"rcon,omitempty"`
 }
 
 type DockerCommandResult struct {
-	ContainerID string `json:"container_id"`
-	Command     string `json:"command"`
-	Sent        bool   `json:"sent"`
+	Deliveries []BroadcastDelivery `json:"deliveries"`
+	DryRun     bool                `json:"dry_run,omitempty"`
+	Sent       bool                `json:"sent"`
 }
 
 type BroadcastTransport string

@@ -207,12 +207,13 @@ func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 }
 
 // dockerCommand godoc
-// @Summary Send a raw container command
-// @Description Sends a command directly to a container through the Docker API.
+// @Summary Send a raw console command
+// @Description Sends the provided command directly to one or more containers without templating.
 // @Tags console
 // @Accept json
 // @Produce json
-// @Param request body service.DockerCommandRequest true "Docker command request"
+// @Param dry_run query bool false "Dry run request"
+// @Param request body service.DockerCommandRequest true "Raw command request"
 // @Success 202 {object} service.DockerCommandResult
 // @Failure 400 {object} ErrorResponse
 // @Failure 408 {object} ErrorResponse
@@ -238,6 +239,9 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 	if req.ContainerID == "" {
 		req.ContainerID = r.PathValue("container_id")
 	}
+	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
+		req.DryRun = dryRun
+	}
 
 	result, err := s.dockerCommander.Send(r.Context(), req)
 	if err != nil {
@@ -248,6 +252,7 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, ErrorResponse{Error: err.Error()})
 		return
 	}
+	logJSON("console command response", result)
 
 	writeJSON(w, http.StatusAccepted, result)
 }
@@ -321,4 +326,13 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+func logJSON(prefix string, body any) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		log.Printf("%s: marshal_error=%v", prefix, err)
+		return
+	}
+	log.Printf("%s: %s", prefix, payload)
 }
