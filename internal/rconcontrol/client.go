@@ -186,7 +186,8 @@ func setDeadline(ctx context.Context, conn net.Conn, timeout time.Duration, writ
 }
 
 func isTimeoutError(err error) bool {
-	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
 		return true
 	}
 	return false

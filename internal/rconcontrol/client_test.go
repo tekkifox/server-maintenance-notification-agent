@@ -3,6 +3,7 @@ package rconcontrol
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -75,6 +76,20 @@ func TestAuthenticateAndExecuteCollectsMultiPacketOutput(t *testing.T) {
 		t.Fatalf("server error: %v", err)
 	}
 }
+
+func TestIsEndOfResponseErrorRecognizesWrappedTimeout(t *testing.T) {
+	err := fmt.Errorf("rcon: read packet size: %w", timeoutError{})
+	if !isEndOfResponseError(err) {
+		t.Fatalf("expected wrapped timeout to be treated as end of response")
+	}
+}
+
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "read tcp i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
+func (timeoutError) Unwrap() error   { return io.EOF }
 
 func readTestPacket(conn net.Conn) (*rcon.Packet, error) {
 	packet := &rcon.Packet{}
