@@ -155,45 +155,6 @@ paths:
       summary: Health check
       tags:
       - system
-  /v1/console/broadcast:
-    post:
-      consumes:
-      - application/json
-      description: Broadcasts a game-specific console command to one or more containers,
-        optionally in dry-run mode.
-      parameters:
-      - description: Dry run request
-        in: query
-        name: dry_run
-        type: boolean
-      - description: Broadcast request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_httpapi.ErrorResponse'
-        "408":
-          description: Request Timeout
-          schema:
-            $ref: '#/definitions/internal_httpapi.ErrorResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/internal_httpapi.ErrorResponse'
-      summary: Broadcast a console command to containers
-      tags:
-      - console
   /v1/console/command:
     post:
       consumes:
@@ -237,7 +198,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends a maintenance notification to one or more Discord channels.
+      description: Sends a message to one or more Discord channels.
       parameters:
       - description: Dry run request
         in: query
@@ -267,6 +228,45 @@ paths:
       summary: Send a Discord broadcast
       tags:
       - discord
+  /v1/message/broadcast:
+    post:
+      consumes:
+      - application/json
+      description: Broadcasts a game-specific message command to one or more consoles,
+        optionally in dry-run mode.
+      parameters:
+      - description: Dry run request
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Broadcast request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "408":
+          description: Request Timeout
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+      summary: Broadcast a message command to consoles
+      tags:
+      - console
 schemes:
 - http
 swagger: "2.0"

@@ -38,6 +38,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("POST /v1/discord/broadcast", s.discordBroadcast)
 	mux.HandleFunc("POST /v1/console/command", s.dockerCommand)
+	mux.HandleFunc("POST /v1/message/broadcast", s.dockerBroadcast)
 	mux.HandleFunc("POST /v1/console/broadcast", s.dockerBroadcast)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	return requestLogger(mux)
@@ -168,7 +169,7 @@ func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 
 // discordBroadcast godoc
 // @Summary Send a Discord broadcast
-// @Description Sends a maintenance notification to one or more Discord channels.
+// @Description Sends a message to one or more Discord channels.
 // @Tags discord
 // @Accept json
 // @Produce json
@@ -258,8 +259,8 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 // dockerBroadcast godoc
-// @Summary Broadcast a console command to containers
-// @Description Broadcasts a game-specific console command to one or more containers, optionally in dry-run mode.
+// @Summary Broadcast a message command to consoles
+// @Description Broadcasts a game-specific message command to one or more consoles, optionally in dry-run mode.
 // @Tags console
 // @Accept json
 // @Produce json
@@ -269,7 +270,7 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 408 {object} ErrorResponse
 // @Failure 503 {object} ErrorResponse
-// @Router /v1/console/broadcast [post]
+// @Router /v1/message/broadcast [post]
 func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})

@@ -175,7 +175,7 @@ curl -X POST 'http://localhost:8080/v1/console/command?dry_run=true' \
   -d '{"container_names":["minecraft-server"],"command":"status"}'
 ```
 
-### `POST /v1/console/broadcast`
+### `POST /v1/message/broadcast`
 
 Builds and sends a broadcast command for one or more containers.
 
@@ -210,10 +210,12 @@ The `dry_run` query parameter is also supported, for example `?dry_run=true`.
 Example:
 
 ```bash
-curl -X POST 'http://localhost:8080/v1/console/broadcast?dry_run=true' \
+curl -X POST 'http://localhost:8080/v1/message/broadcast?dry_run=true' \
   -H 'Content-Type: application/json' \
   -d '{"container_names":["minecraft-server"],"game":"minecraft","message":"Server restarting in 10 minutes"}'
 ```
+
+The old `/v1/console/broadcast` path is still accepted as an alias.
 
 ## Docker
 

@@ -35,64 +35,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/console/broadcast": {
-            "post": {
-                "description": "Broadcasts a game-specific console command to one or more containers, optionally in dry-run mode.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "console"
-                ],
-                "summary": "Broadcast a console command to containers",
-                "parameters": [
-                    {
-                        "type": "boolean",
-                        "description": "Dry run request",
-                        "name": "dry_run",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Broadcast request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
-                        }
-                    },
-                    "408": {
-                        "description": "Request Timeout",
-                        "schema": {
-                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/console/command": {
             "post": {
                 "description": "Sends the provided command directly to one or more containers without templating.",
@@ -153,7 +95,7 @@ const docTemplate = `{
         },
         "/v1/discord/broadcast": {
             "post": {
-                "description": "Sends a maintenance notification to one or more Discord channels.",
+                "description": "Sends a message to one or more Discord channels.",
                 "consumes": [
                     "application/json"
                 ],
@@ -196,6 +138,64 @@ const docTemplate = `{
                     },
                     "408": {
                         "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/message/broadcast": {
+            "post": {
+                "description": "Broadcasts a game-specific message command to one or more consoles, optionally in dry-run mode.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "console"
+                ],
+                "summary": "Broadcast a message command to consoles",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Dry run request",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Broadcast request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/internal_httpapi.ErrorResponse"
                         }

@@ -106,6 +106,35 @@ func TestConsoleCommandReturnsOutput(t *testing.T) {
 	}
 }
 
+func TestMessageBroadcastDryRunRoute(t *testing.T) {
+	commander := service.NewDockerCommander(nil, nil, nil, nil, []string{"alpha"}, nil, nil, nil, nil)
+	server := NewServer(nil, commander)
+
+	body, err := json.Marshal(service.BroadcastRequest{Message: "test"})
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/message/broadcast?dry_run=true", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	server.Routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	var result service.BroadcastResult
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !result.DryRun || result.Sent {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.Deliveries) != 1 || result.Deliveries[0].ContainerRef != "alpha" {
+		t.Fatalf("unexpected deliveries: %+v", result.Deliveries)
+	}
+}
+
 func TestSwaggerRouteServesDocs(t *testing.T) {
 	server := NewServer(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
