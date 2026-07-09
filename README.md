@@ -88,6 +88,8 @@ RCON targets also resolve game names from Pelican egg metadata when `PELICAN_API
 
 All responses are JSON.
 
+Swagger UI is available at `/swagger/index.html` when the service is running.
+
 ### `GET /healthz`
 
 Returns a basic health check.

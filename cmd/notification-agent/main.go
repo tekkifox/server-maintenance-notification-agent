@@ -1,5 +1,11 @@
 package main
 
+// @title Server Maintenance Notification Agent API
+// @version 1.0
+// @description HTTP API for Discord maintenance notifications and remote console broadcasts.
+// @BasePath /
+// @schemes http
+
 import (
 	"context"
 	"errors"
@@ -10,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "server-maintenance-notification-agent/docs"
 	"server-maintenance-notification-agent/internal/config"
 	"server-maintenance-notification-agent/internal/discord"
 	"server-maintenance-notification-agent/internal/dockercontrol"

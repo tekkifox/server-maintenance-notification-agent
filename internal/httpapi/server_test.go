@@ -43,6 +43,21 @@ func TestDiscordBroadcastDryRunQuery(t *testing.T) {
 	}
 }
 
+func TestSwaggerRouteServesDocs(t *testing.T) {
+	server := NewServer(nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+	rr := httptest.NewRecorder()
+
+	server.Routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	if rr.Body.Len() == 0 {
+		t.Fatalf("expected swagger response body")
+	}
+}
+
 type serviceTestMessenger struct {
 	calls []struct{ channelID, message string }
 }

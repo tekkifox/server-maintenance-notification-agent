@@ -415,14 +415,6 @@ func buildTargetsForRefs(refs []string, requestGame string, requestRCON *RCONReq
 	return targets
 }
 
-func buildRCONTargetLookup(targets []BroadcastTarget) map[string]BroadcastTarget {
-	lookup := make(map[string]BroadcastTarget, len(targets))
-	for _, target := range targets {
-		lookup[target.Ref] = target
-	}
-	return lookup
-}
-
 func parseRequestedTransport(value BroadcastTransport) (BroadcastTransport, bool) {
 	raw := strings.TrimSpace(string(value))
 	if raw == "" {

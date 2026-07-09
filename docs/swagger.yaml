@@ -1,0 +1,249 @@
+basePath: /
+definitions:
+  internal_httpapi.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  internal_httpapi.HealthResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  server-maintenance-notification-agent_internal_service.BroadcastDelivery:
+    properties:
+      command:
+        type: string
+      container_ref:
+        type: string
+      game:
+        type: string
+      sent:
+        type: boolean
+      transport:
+        $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastTransport'
+    type: object
+  server-maintenance-notification-agent_internal_service.BroadcastRequest:
+    properties:
+      command:
+        type: string
+      container_id:
+        type: string
+      container_ids:
+        items:
+          type: string
+        type: array
+      container_name:
+        type: string
+      container_names:
+        items:
+          type: string
+        type: array
+      dry_run:
+        type: boolean
+      game:
+        type: string
+      message:
+        type: string
+      rcon:
+        $ref: '#/definitions/server-maintenance-notification-agent_internal_service.RCONRequest'
+      transport:
+        $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastTransport'
+    type: object
+  server-maintenance-notification-agent_internal_service.BroadcastResult:
+    properties:
+      deliveries:
+        items:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastDelivery'
+        type: array
+      dry_run:
+        type: boolean
+      sent:
+        type: boolean
+    type: object
+  server-maintenance-notification-agent_internal_service.BroadcastTransport:
+    enum:
+    - docker
+    - rcon
+    - telnet
+    type: string
+    x-enum-varnames:
+    - BroadcastTransportDocker
+    - BroadcastTransportRCON
+    - BroadcastTransportTelnet
+  server-maintenance-notification-agent_internal_service.DockerCommandRequest:
+    properties:
+      command:
+        type: string
+      container_id:
+        type: string
+    type: object
+  server-maintenance-notification-agent_internal_service.DockerCommandResult:
+    properties:
+      command:
+        type: string
+      container_id:
+        type: string
+      sent:
+        type: boolean
+    type: object
+  server-maintenance-notification-agent_internal_service.RCONRequest:
+    properties:
+      address:
+        type: string
+      password:
+        type: string
+    type: object
+  server-maintenance-notification-agent_internal_service.TriggerRequest:
+    properties:
+      channel_id:
+        type: string
+      channel_ids:
+        items:
+          type: string
+        type: array
+      dry_run:
+        type: boolean
+      message:
+        type: string
+    type: object
+  server-maintenance-notification-agent_internal_service.TriggerResult:
+    properties:
+      delivered:
+        items:
+          type: string
+        type: array
+      dry_run:
+        type: boolean
+      sent:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: HTTP API for Discord maintenance notifications and remote console broadcasts.
+  title: Server Maintenance Notification Agent API
+  version: "1.0"
+paths:
+  /healthz:
+    get:
+      description: Returns service health status.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_httpapi.HealthResponse'
+      summary: Health check
+      tags:
+      - system
+  /v1/console/broadcast:
+    post:
+      consumes:
+      - application/json
+      description: Broadcasts a game-specific console command to one or more containers,
+        optionally in dry-run mode.
+      parameters:
+      - description: Dry run request
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Broadcast request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "408":
+          description: Request Timeout
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+      summary: Broadcast a console command to containers
+      tags:
+      - console
+  /v1/console/command:
+    post:
+      consumes:
+      - application/json
+      description: Sends a command directly to a container through the Docker API.
+      parameters:
+      - description: Docker command request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.DockerCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.DockerCommandResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "408":
+          description: Request Timeout
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+      summary: Send a raw container command
+      tags:
+      - console
+  /v1/discord/broadcast:
+    post:
+      consumes:
+      - application/json
+      description: Sends a maintenance notification to one or more Discord channels.
+      parameters:
+      - description: Dry run request
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Discord broadcast request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server-maintenance-notification-agent_internal_service.TriggerRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server-maintenance-notification-agent_internal_service.TriggerResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+        "408":
+          description: Request Timeout
+          schema:
+            $ref: '#/definitions/internal_httpapi.ErrorResponse'
+      summary: Send a Discord broadcast
+      tags:
+      - discord
+schemes:
+- http
+swagger: "2.0"

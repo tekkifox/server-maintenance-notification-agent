@@ -1,0 +1,379 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "HTTP API for Discord maintenance notifications and remote console broadcasts.",
+        "title": "Server Maintenance Notification Agent API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/healthz": {
+            "get": {
+                "description": "Returns service health status.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/console/broadcast": {
+            "post": {
+                "description": "Broadcasts a game-specific console command to one or more containers, optionally in dry-run mode.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "console"
+                ],
+                "summary": "Broadcast a console command to containers",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Dry run request",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Broadcast request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/console/command": {
+            "post": {
+                "description": "Sends a command directly to a container through the Docker API.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "console"
+                ],
+                "summary": "Send a raw container command",
+                "parameters": [
+                    {
+                        "description": "Docker command request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.DockerCommandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.DockerCommandResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/discord/broadcast": {
+            "post": {
+                "description": "Sends a maintenance notification to one or more Discord channels.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "discord"
+                ],
+                "summary": "Send a Discord broadcast",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Dry run request",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Discord broadcast request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.TriggerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.TriggerResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "internal_httpapi.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_httpapi.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.BroadcastDelivery": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "container_ref": {
+                    "type": "string"
+                },
+                "game": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "boolean"
+                },
+                "transport": {
+                    "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastTransport"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.BroadcastRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "string"
+                },
+                "container_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "container_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "game": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "rcon": {
+                    "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.RCONRequest"
+                },
+                "transport": {
+                    "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastTransport"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.BroadcastResult": {
+            "type": "object",
+            "properties": {
+                "deliveries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server-maintenance-notification-agent_internal_service.BroadcastDelivery"
+                    }
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "sent": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.BroadcastTransport": {
+            "type": "string",
+            "enum": [
+                "docker",
+                "rcon",
+                "telnet"
+            ],
+            "x-enum-varnames": [
+                "BroadcastTransportDocker",
+                "BroadcastTransportRCON",
+                "BroadcastTransportTelnet"
+            ]
+        },
+        "server-maintenance-notification-agent_internal_service.DockerCommandRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.DockerCommandResult": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.RCONRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.TriggerRequest": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "server-maintenance-notification-agent_internal_service.TriggerResult": {
+            "type": "object",
+            "properties": {
+                "delivered": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "sent": {
+                    "type": "boolean"
+                }
+            }
+        }
+    }
+}

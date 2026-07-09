@@ -11,8 +11,18 @@ import (
 	"strings"
 	"time"
 
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
 	"server-maintenance-notification-agent/internal/service"
 )
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type HealthResponse struct {
+	Status string `json:"status"`
+}
 
 type Server struct {
 	notifier        *service.Notifier
@@ -29,6 +39,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/discord/broadcast", s.discordBroadcast)
 	mux.HandleFunc("POST /v1/console/command", s.dockerCommand)
 	mux.HandleFunc("POST /v1/console/broadcast", s.dockerBroadcast)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	return requestLogger(mux)
 }
 
@@ -144,10 +155,29 @@ func (w *loggingResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
+// healthz godoc
+// @Summary Health check
+// @Description Returns service health status.
+// @Tags system
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Router /healthz [get]
 func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 }
 
+// discordBroadcast godoc
+// @Summary Send a Discord broadcast
+// @Description Sends a maintenance notification to one or more Discord channels.
+// @Tags discord
+// @Accept json
+// @Produce json
+// @Param dry_run query bool false "Dry run request"
+// @Param request body service.TriggerRequest true "Discord broadcast request"
+// @Success 202 {object} service.TriggerResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 408 {object} ErrorResponse
+// @Router /v1/discord/broadcast [post]
 func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -156,7 +186,7 @@ func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 
 	var req service.TriggerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON body"})
 		return
 	}
 	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
@@ -169,13 +199,25 @@ func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			status = http.StatusRequestTimeout
 		}
-		writeJSON(w, status, map[string]string{"error": err.Error()})
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusAccepted, result)
 }
 
+// dockerCommand godoc
+// @Summary Send a raw container command
+// @Description Sends a command directly to a container through the Docker API.
+// @Tags console
+// @Accept json
+// @Produce json
+// @Param request body service.DockerCommandRequest true "Docker command request"
+// @Success 202 {object} service.DockerCommandResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 408 {object} ErrorResponse
+// @Failure 503 {object} ErrorResponse
+// @Router /v1/console/command [post]
 func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -183,13 +225,13 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.dockerCommander == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "docker control is not configured"})
+		writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "docker control is not configured"})
 		return
 	}
 
 	var req service.DockerCommandRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON body"})
 		return
 	}
 
@@ -203,13 +245,26 @@ func (s *Server) dockerCommand(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			status = http.StatusRequestTimeout
 		}
-		writeJSON(w, status, map[string]string{"error": err.Error()})
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusAccepted, result)
 }
 
+// dockerBroadcast godoc
+// @Summary Broadcast a console command to containers
+// @Description Broadcasts a game-specific console command to one or more containers, optionally in dry-run mode.
+// @Tags console
+// @Accept json
+// @Produce json
+// @Param dry_run query bool false "Dry run request"
+// @Param request body service.BroadcastRequest true "Broadcast request"
+// @Success 202 {object} service.BroadcastResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 408 {object} ErrorResponse
+// @Failure 503 {object} ErrorResponse
+// @Router /v1/console/broadcast [post]
 func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -217,13 +272,13 @@ func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.dockerCommander == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "docker control is not configured"})
+		writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "docker control is not configured"})
 		return
 	}
 
 	var req service.BroadcastRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON body"})
 		return
 	}
 
@@ -240,7 +295,7 @@ func (s *Server) dockerBroadcast(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			status = http.StatusRequestTimeout
 		}
-		writeJSON(w, status, map[string]string{"error": err.Error()})
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
 		return
 	}
 
