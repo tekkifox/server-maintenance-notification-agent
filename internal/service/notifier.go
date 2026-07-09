@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"server-maintenance-notification-agent/internal/discord"
@@ -21,10 +22,13 @@ type TriggerRequest struct {
 	Message    string   `json:"message"`
 	ChannelID  string   `json:"channel_id,omitempty"`
 	ChannelIDs []string `json:"channel_ids,omitempty"`
+	DryRun     bool     `json:"dry_run,omitempty"`
 }
 
 type TriggerResult struct {
 	Delivered []string `json:"delivered"`
+	DryRun    bool     `json:"dry_run,omitempty"`
+	Sent      bool     `json:"sent"`
 }
 
 func (n *Notifier) Trigger(ctx context.Context, req TriggerRequest) (TriggerResult, error) {
@@ -41,18 +45,25 @@ func (n *Notifier) Trigger(ctx context.Context, req TriggerRequest) (TriggerResu
 		channelIDs = append(channelIDs, n.defaultChannelIDs...)
 	}
 
+	if req.DryRun {
+		log.Printf("discord broadcast dry run: channels=%d ids=%v", len(channelIDs), channelIDs)
+		return TriggerResult{Delivered: channelIDs, DryRun: true, Sent: false}, nil
+	}
+
 	delivered := make([]string, 0, len(channelIDs))
 	for _, channelID := range channelIDs {
 		if err := ctx.Err(); err != nil {
 			return TriggerResult{}, err
 		}
+		log.Printf("discord broadcast send: channel=%s", channelID)
 		if err := n.messenger.SendMessage(channelID, message); err != nil {
 			return TriggerResult{}, fmt.Errorf("send to %s: %w", channelID, err)
 		}
 		delivered = append(delivered, channelID)
 	}
 
-	return TriggerResult{Delivered: delivered}, nil
+	log.Printf("discord broadcast complete: delivered=%d", len(delivered))
+	return TriggerResult{Delivered: delivered, Sent: true}, nil
 }
 
 func normalizeChannelIDs(values ...string) []string {

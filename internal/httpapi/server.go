@@ -159,6 +159,9 @@ func (s *Server) discordBroadcast(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 		return
 	}
+	if dryRun, ok := parseBoolQuery(r, "dry_run"); ok {
+		req.DryRun = dryRun
+	}
 
 	result, err := s.notifier.Trigger(r.Context(), req)
 	if err != nil {

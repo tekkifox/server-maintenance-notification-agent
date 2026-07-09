@@ -105,7 +105,8 @@ Request body:
 ```json
 {
   "message": "Server restarting in 10 minutes",
-  "channel_ids": ["123456789012345678", "234567890123456789"]
+  "channel_ids": ["123456789012345678", "234567890123456789"],
+  "dry_run": true
 }
 ```
 
@@ -114,13 +115,20 @@ Fields:
 - `message`: Required message text.
 - `channel_id`: Optional single channel ID.
 - `channel_ids`: Optional list of channel IDs.
+- `dry_run`: Optional boolean. When `true`, the service resolves the target channels but does not send messages.
 
 If no channel is provided, the service uses `DISCORD_DEFAULT_CHANNEL_IDS`.
+
+Response fields:
+
+- `delivered`: The resolved channel IDs.
+- `dry_run`: `true` when the request ran in dry-run mode.
+- `sent`: `true` only when messages were actually sent.
 
 Example:
 
 ```bash
-curl -X POST http://localhost:8080/v1/discord/broadcast \
+curl -X POST 'http://localhost:8080/v1/discord/broadcast?dry_run=true' \
   -H 'Content-Type: application/json' \
   -d '{"message":"Server restarting in 10 minutes"}'
 ```
