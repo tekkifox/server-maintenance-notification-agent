@@ -57,6 +57,8 @@ func (c *Client) SendCommand(ctx context.Context, containerID, command string) (
 	resp, err := c.cli.ContainerAttach(ctx, containerID, client.ContainerAttachOptions{
 		Stream: true,
 		Stdin:  true,
+		Stdout: true,
+		Stderr: true,
 		Logs:   false,
 	})
 	if err != nil {
