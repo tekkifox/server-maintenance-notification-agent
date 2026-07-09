@@ -243,6 +243,9 @@ func TestCommandUsesRCONTransport(t *testing.T) {
 	if rcon.calls[0].command != "status" {
 		t.Fatalf("unexpected rcon command: %+v", rcon.calls[0])
 	}
+	if result.Deliveries[0].Output != "ok" {
+		t.Fatalf("expected rcon output to be returned, got %+v", result.Deliveries[0])
+	}
 }
 
 func TestBroadcastUsesDockerTransportWhenConfigured(t *testing.T) {

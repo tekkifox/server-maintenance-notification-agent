@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -72,6 +73,39 @@ func TestConsoleCommandDryRunQuery(t *testing.T) {
 	}
 }
 
+func TestConsoleCommandReturnsOutput(t *testing.T) {
+	rcon := &testRCONExecutor{response: "done"}
+	commander := service.NewDockerCommander(nil, rcon, nil, nil, nil, []string{"minecraft-server"}, []string{"rcon"}, []string{"127.0.0.1:27015"}, []string{"secret"})
+	server := NewServer(nil, commander)
+
+	body, err := json.Marshal(service.DockerCommandRequest{Command: "status"})
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/console/command", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	server.dockerCommand(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	var result service.DockerCommandResult
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !result.Sent || result.DryRun {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.Deliveries) != 1 || result.Deliveries[0].Output != "done" {
+		t.Fatalf("expected command output to be returned, got %+v", result.Deliveries)
+	}
+	if len(rcon.calls) != 1 || rcon.calls[0].command != "status" {
+		t.Fatalf("unexpected rcon calls: %+v", rcon.calls)
+	}
+}
+
 func TestSwaggerRouteServesDocs(t *testing.T) {
 	server := NewServer(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
@@ -96,4 +130,14 @@ func (m *serviceTestMessenger) Close() error { return nil }
 func (m *serviceTestMessenger) SendMessage(channelID, message string) error {
 	m.calls = append(m.calls, struct{ channelID, message string }{channelID: channelID, message: message})
 	return nil
+}
+
+type testRCONExecutor struct {
+	calls    []struct{ address, password, command string }
+	response string
+}
+
+func (e *testRCONExecutor) Execute(_ context.Context, address, password, command string) (string, error) {
+	e.calls = append(e.calls, struct{ address, password, command string }{address: address, password: password, command: command})
+	return e.response, nil
 }

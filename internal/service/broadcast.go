@@ -118,13 +118,15 @@ func (d *DockerCommander) Send(ctx context.Context, req DockerCommandRequest) (D
 			})
 			continue
 		}
-		if err := d.deliverCommand(ctx, target, command); err != nil {
+		output, actualTransport, err := d.deliverCommand(ctx, target, command)
+		if err != nil {
 			return DockerCommandResult{}, err
 		}
 		deliveries = append(deliveries, BroadcastDelivery{
-			Transport:    normalizeTargetTransport(target.Transport),
+			Transport:    actualTransport,
 			ContainerRef: target.Ref,
 			Command:      command,
+			Output:       output,
 			Sent:         true,
 		})
 	}
@@ -242,39 +244,40 @@ func (d *DockerCommander) Broadcast(ctx context.Context, req BroadcastRequest) (
 	return BroadcastResult{Deliveries: deliveries, Sent: true}, nil
 }
 
-func (d *DockerCommander) deliverCommand(ctx context.Context, target BroadcastTarget, command string) error {
+func (d *DockerCommander) deliverCommand(ctx context.Context, target BroadcastTarget, command string) (string, BroadcastTransport, error) {
 	targetTransport := normalizeTargetTransport(target.Transport)
 	switch targetTransport {
 	case BroadcastTransportRCON:
 		if d.rconExecutor == nil {
-			return fmt.Errorf("rcon transport is not configured")
+			return "", targetTransport, fmt.Errorf("rcon transport is not configured")
 		}
 		if target.RCONAddress == "" || target.RCONPassword == "" {
-			return fmt.Errorf("rcon address and password are required for %s", target.Ref)
+			return "", targetTransport, fmt.Errorf("rcon address and password are required for %s", target.Ref)
 		}
-		if _, err := d.rconExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
-			return fmt.Errorf("send rcon to %s: %w", target.Ref, err)
+		response, err := d.rconExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command)
+		if err != nil {
+			return "", targetTransport, fmt.Errorf("send rcon to %s: %w", target.Ref, err)
 		}
-		return nil
+		return strings.TrimSpace(response), targetTransport, nil
 	case BroadcastTransportTelnet:
 		if d.telnetExecutor == nil {
-			return fmt.Errorf("telnet transport is not configured")
+			return "", targetTransport, fmt.Errorf("telnet transport is not configured")
 		}
 		if target.RCONAddress == "" || target.RCONPassword == "" {
-			return fmt.Errorf("telnet address and password are required for %s", target.Ref)
+			return "", targetTransport, fmt.Errorf("telnet address and password are required for %s", target.Ref)
 		}
 		if err := d.telnetExecutor.Execute(ctx, target.RCONAddress, target.RCONPassword, command); err != nil {
-			return fmt.Errorf("send telnet to %s: %w", target.Ref, err)
+			return "", targetTransport, fmt.Errorf("send telnet to %s: %w", target.Ref, err)
 		}
-		return nil
+		return "", targetTransport, nil
 	default:
 		if d.commander == nil {
-			return fmt.Errorf("docker control is not configured")
+			return "", targetTransport, fmt.Errorf("docker control is not configured")
 		}
 		if err := d.commander.SendCommand(ctx, target.Ref, command); err != nil {
-			return fmt.Errorf("send to %s: %w", target.Ref, err)
+			return "", targetTransport, fmt.Errorf("send to %s: %w", target.Ref, err)
 		}
-		return nil
+		return "", targetTransport, nil
 	}
 }
 

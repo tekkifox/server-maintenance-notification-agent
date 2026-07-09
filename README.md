@@ -151,7 +151,6 @@ Request body:
 
 Fields:
 
-- `container_id`: Required container ID or name.
 - `container_id`: Optional single container ID or name.
 - `container_ids`: Optional list of container IDs.
 - `command`: Required command to send.
@@ -159,6 +158,12 @@ Fields:
 - `container_names`: Optional list of container names.
 - `dry_run`: Optional boolean. When `true`, the service resolves targets but does not send the command.
 - `rcon`: Optional override object with `address` and `password`.
+
+Response fields:
+
+- `deliveries`: Per-target delivery results, including `output` when the transport returns one.
+- `dry_run`: `true` when the request ran in dry-run mode.
+- `sent`: `true` only when the command was actually sent.
 
 If no container target is provided, the service uses the configured default console and RCON targets.
 

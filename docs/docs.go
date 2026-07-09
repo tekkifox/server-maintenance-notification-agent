@@ -233,6 +233,9 @@ const docTemplate = `{
                 "game": {
                     "type": "string"
                 },
+                "output": {
+                    "type": "string"
+                },
                 "sent": {
                     "type": "boolean"
                 },

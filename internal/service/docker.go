@@ -47,6 +47,7 @@ type BroadcastDelivery struct {
 	ContainerRef string             `json:"container_ref"`
 	Game         string             `json:"game,omitempty"`
 	Command      string             `json:"command"`
+	Output       string             `json:"output,omitempty"`
 	Sent         bool               `json:"sent"`
 }
 
