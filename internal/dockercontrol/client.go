@@ -70,10 +70,6 @@ func (c *Client) SendCommand(ctx context.Context, containerID, command string) (
 		return "", fmt.Errorf("write command to %s: %w", containerID, err)
 	}
 
-	if closer, ok := resp.Conn.(interface{ CloseWrite() error }); ok {
-		_ = closer.CloseWrite()
-	}
-
 	return c.collectAttachOutput(ctx, resp, inspected.Container.Config != nil && inspected.Container.Config.Tty)
 }
 
