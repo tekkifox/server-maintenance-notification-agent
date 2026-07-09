@@ -32,7 +32,13 @@ func NewClient(token string) (*Client, error) {
 		return nil, err
 	}
 
+	session.Identify.Intents = discordgo.IntentGuilds | discordgo.IntentGuildMessages | discordgo.IntentMessageContent
+
 	return &Client{session: session}, nil
+}
+
+func (c *Client) Session() *discordgo.Session {
+	return c.session
 }
 
 func (c *Client) Open() error {

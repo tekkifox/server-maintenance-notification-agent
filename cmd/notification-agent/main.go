@@ -89,6 +89,9 @@ func main() {
 			dockerCommander.SetGameResolver(resolver)
 		}
 	}
+	bridge := service.NewDiscordRCONBridge(discordClient.Session(), dockerCommander, cfg.DiscordIngestChannelIDs, cfg.RCONIngestContainerNames)
+	bridge.Start()
+
 	server := httpapi.NewServer(notifier, dockerCommander)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

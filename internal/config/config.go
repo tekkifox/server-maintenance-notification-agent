@@ -10,6 +10,8 @@ import (
 type Config struct {
 	HTTPAddr                       string
 	DiscordBotToken                string
+	DiscordIngestChannelIDs        []string
+	RCONIngestContainerNames       []string
 	PelicanAPIURL                  string
 	PelicanAPIToken                string
 	PelicanLogAPIOutput            bool
@@ -75,6 +77,8 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		HTTPAddr:                       envOrDefault("HTTP_ADDR", ":8080"),
 		DiscordBotToken:                strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN")),
+		DiscordIngestChannelIDs:        parseDelimitedList(os.Getenv("DISCORD_INGEST_CHANNEL_IDS"), os.Getenv("DISCORD_INGEST_CHANNEL_ID")),
+		RCONIngestContainerNames:       parseDelimitedList(os.Getenv("RCON_INGEST_CONTAINER_NAMES"), os.Getenv("RCON_INGEST_CONTAINER_NAME")),
 		PelicanAPIURL:                  strings.TrimSpace(os.Getenv("PELICAN_API_URL")),
 		PelicanAPIToken:                strings.TrimSpace(os.Getenv("PELICAN_API_TOKEN")),
 		PelicanLogAPIOutput:            parseBoolEnv("PELICAN_LOG_API_OUTPUT", false),
