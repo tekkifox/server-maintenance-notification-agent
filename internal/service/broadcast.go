@@ -258,7 +258,7 @@ func (d *DockerCommander) deliverCommand(ctx context.Context, target BroadcastTa
 		if err != nil {
 			return "", targetTransport, fmt.Errorf("send rcon to %s: %w", target.Ref, err)
 		}
-		return strings.TrimSpace(response), targetTransport, nil
+		return response, targetTransport, nil
 	case BroadcastTransportTelnet:
 		if d.telnetExecutor == nil {
 			return "", targetTransport, fmt.Errorf("telnet transport is not configured")
