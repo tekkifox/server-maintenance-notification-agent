@@ -8,7 +8,8 @@ import (
 )
 
 type recordingCommander struct {
-	calls []recordingCall
+	response string
+	calls    []recordingCall
 }
 
 type recordingRCONExecutor struct {
@@ -16,7 +17,8 @@ type recordingRCONExecutor struct {
 }
 
 type recordingTelnetExecutor struct {
-	calls []recordingTelnetCall
+	response string
+	calls    []recordingTelnetCall
 }
 
 type failingTelnetExecutor struct {
@@ -43,9 +45,9 @@ type recordingCall struct {
 	command      string
 }
 
-func (r *recordingCommander) SendCommand(_ context.Context, containerID, command string) error {
+func (r *recordingCommander) SendCommand(_ context.Context, containerID, command string) (string, error) {
 	r.calls = append(r.calls, recordingCall{containerRef: containerID, command: command})
-	return nil
+	return r.response, nil
 }
 
 func (r *recordingRCONExecutor) Execute(_ context.Context, address, password, command string) (string, error) {
@@ -53,17 +55,17 @@ func (r *recordingRCONExecutor) Execute(_ context.Context, address, password, co
 	return "ok", nil
 }
 
-func (r *recordingTelnetExecutor) Execute(_ context.Context, address, password, command string) error {
+func (r *recordingTelnetExecutor) Execute(_ context.Context, address, password, command string) (string, error) {
 	r.calls = append(r.calls, recordingTelnetCall{address: address, password: password, command: command})
-	return nil
+	return r.response, nil
 }
 
-func (r *failingTelnetExecutor) Execute(_ context.Context, address, password, command string) error {
+func (r *failingTelnetExecutor) Execute(_ context.Context, address, password, command string) (string, error) {
 	r.calls = append(r.calls, recordingTelnetCall{address: address, password: password, command: command})
 	if r.err != nil {
-		return r.err
+		return "", r.err
 	}
-	return context.DeadlineExceeded
+	return "", context.DeadlineExceeded
 }
 
 func (r staticGameResolver) ResolveGame(_ context.Context, containerRef string) (string, error) {
@@ -245,6 +247,38 @@ func TestCommandUsesRCONTransport(t *testing.T) {
 	}
 	if result.Deliveries[0].Output != "ok" {
 		t.Fatalf("expected rcon output to be returned, got %+v", result.Deliveries[0])
+	}
+}
+
+func TestCommandReturnsDockerOutput(t *testing.T) {
+	recorder := &recordingCommander{response: "docker-ok"}
+	commander := NewDockerCommander(recorder, nil, nil, nil, []string{"docker-server"}, nil, nil, nil, nil)
+
+	result, err := commander.Send(context.Background(), DockerCommandRequest{Command: "status"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if result.Deliveries[0].Output != "docker-ok" {
+		t.Fatalf("expected docker output to be returned, got %+v", result.Deliveries[0])
+	}
+}
+
+func TestCommandReturnsTelnetOutput(t *testing.T) {
+	telnet := &recordingTelnetExecutor{response: "telnet-ok"}
+	commander := NewDockerCommander(nil, nil, telnet, nil, []string{"telnet-server"}, []string{"telnet-server"}, []string{"telnet"}, []string{"127.0.0.1:1234"}, []string{"secret"})
+
+	result, err := commander.Send(context.Background(), DockerCommandRequest{Command: "status"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Deliveries) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(result.Deliveries))
+	}
+	if result.Deliveries[0].Output != "telnet-ok" {
+		t.Fatalf("expected telnet output to be returned, got %+v", result.Deliveries[0])
 	}
 }
 
