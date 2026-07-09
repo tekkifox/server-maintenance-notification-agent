@@ -9,14 +9,25 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+var defaultFilteredPhrases = []string{
+	"has killed",
+	"killed by",
+	"has died",
+	"was killed",
+	"slain by",
+	"left the game",
+	"joined the game",
+}
+
 type DiscordRCONBridge struct {
 	session            *discordgo.Session
 	dockerCommander    *DockerCommander
 	channelToContainer map[string]string
 	channelIDs         []string
+	filteredPhrases    []string
 }
 
-func NewDiscordRCONBridge(session *discordgo.Session, dockerCommander *DockerCommander, channelIDs []string, containerNames []string) *DiscordRCONBridge {
+func NewDiscordRCONBridge(session *discordgo.Session, dockerCommander *DockerCommander, channelIDs []string, containerNames []string, extraFilteredPhrases []string) *DiscordRCONBridge {
 	channelToContainer := make(map[string]string)
 	for i, chID := range channelIDs {
 		chID = strings.TrimSpace(chID)
@@ -31,11 +42,23 @@ func NewDiscordRCONBridge(session *discordgo.Session, dockerCommander *DockerCom
 		}
 	}
 
+	filteredPhrases := make([]string, 0, len(defaultFilteredPhrases)+len(extraFilteredPhrases))
+	for _, phrase := range defaultFilteredPhrases {
+		filteredPhrases = append(filteredPhrases, strings.ToLower(phrase))
+	}
+	for _, phrase := range extraFilteredPhrases {
+		phrase = strings.TrimSpace(phrase)
+		if phrase != "" {
+			filteredPhrases = append(filteredPhrases, strings.ToLower(phrase))
+		}
+	}
+
 	return &DiscordRCONBridge{
 		session:            session,
 		dockerCommander:    dockerCommander,
 		channelToContainer: channelToContainer,
 		channelIDs:         channelIDs,
+		filteredPhrases:    filteredPhrases,
 	}
 }
 
@@ -45,7 +68,7 @@ func (b *DiscordRCONBridge) Start() {
 		return
 	}
 
-	log.Printf("Starting Discord RCON bridge for channels: %v (mapped to containers: %+v)", b.channelIDs, b.channelToContainer)
+	log.Printf("Starting Discord RCON bridge for channels: %v (mapped to containers: %+v, filtered phrases: %v)", b.channelIDs, b.channelToContainer, b.filteredPhrases)
 	b.session.AddHandler(b.handleMessage)
 }
 
@@ -70,6 +93,15 @@ func (b *DiscordRCONBridge) handleMessage(s *discordgo.Session, m *discordgo.Mes
 	content := strings.TrimSpace(m.Content)
 	if content == "" {
 		return
+	}
+
+	// Check against case-insensitive filtered phrases lookup table
+	contentLower := strings.ToLower(content)
+	for _, phrase := range b.filteredPhrases {
+		if strings.Contains(contentLower, phrase) {
+			log.Printf("Discord RCON bridge: ignoring message in channel %s containing filtered phrase: %q", m.ChannelID, phrase)
+			return
+		}
 	}
 
 	log.Printf("Discord RCON bridge: ingesting message from %s in channel %s: %s", m.Author.Username, m.ChannelID, content)
