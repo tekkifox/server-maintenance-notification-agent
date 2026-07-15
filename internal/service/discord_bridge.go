@@ -17,6 +17,8 @@ var defaultFilteredPhrases = []string{
 	"slain by",
 	"left the game",
 	"joined the game",
+	"[local]",
+	"[global]",
 }
 
 type DiscordRCONBridge struct {

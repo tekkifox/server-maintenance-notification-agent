@@ -232,4 +232,23 @@ func TestDiscordRCONBridge_FilteringPhrases(t *testing.T) {
 	if len(rcon.calls) != 0 {
 		t.Fatalf("expected message with custom filtered phrase to be ignored, got RCON call")
 	}
+
+	// 5. Relay-tagged chat messages from the game should be ignored to avoid echoing them back over RCON
+	for _, content := range []string{"[Local] Alice: Hello from local chat", "[Global] Bob: Hello from global chat"} {
+		rcon.calls = nil
+		mCreateRelay := &discordgo.MessageCreate{
+			Message: &discordgo.Message{
+				ChannelID: "chan-ingest",
+				Content:   content,
+				Author: &discordgo.User{
+					ID:       "some-user-id",
+					Username: "Alice",
+				},
+			},
+		}
+		bridge.handleMessage(session, mCreateRelay)
+		if len(rcon.calls) != 0 {
+			t.Fatalf("expected relay-tagged message %q to be ignored, got RCON call", content)
+		}
+	}
 }
