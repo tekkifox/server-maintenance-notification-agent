@@ -9,7 +9,6 @@
   "prHourlyLimit": 2,
   "labels": ["dependencies"],
   "automerge": false,
-  "minimumReleaseAge": "3 days",
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["security", "dependencies"],
@@ -28,6 +27,11 @@
       "groupName": "Docker base images",
       "separateMajorMinor": false,
       "automerge": false
+    },
+    {
+      "description": "Hold non-major updates for the release-age cooldown; majors are exempt for human review",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "minimumReleaseAge": "12 hours"
     },
     {
       "description": "Never automerge major updates",
