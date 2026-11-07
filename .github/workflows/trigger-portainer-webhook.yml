@@ -18,10 +18,16 @@ env:
 
 jobs:
   trigger:
-    runs-on: [self-hosted, paseo]
+    runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
+      - name: Join the tailnet
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          args: --hostname=gh-server-maintenance-notification-agent-${{ github.run_id }}
+
       - name: Redeploy Portainer stack via API
         shell: bash
         env:
@@ -41,8 +47,9 @@ jobs:
 
           PORTAINER_URL="${PORTAINER_URL%/}"
 
-          # Perform a request and print the body to stdout. Any non-2xx status
-          # prints the response body to stderr and fails the step.
+          # Portainer on the tailnet serves a self-signed certificate on :9443,
+          # so -k is required. Perform a request and print the body to stdout.
+          # Any non-2xx status prints the response body to stderr and fails the step.
           request() {
             local method="$1"
             local url="$2"
@@ -50,7 +57,7 @@ jobs:
             local response status body
 
             if [ -n "${data}" ]; then
-              response=$(curl -sS -X "${method}" "${url}" \
+              response=$(curl -sSk -X "${method}" "${url}" \
                 -H "X-API-Key: ${PORTAINER_API_KEY}" \
                 -H "Content-Type: application/json" \
                 -d "${data}" \
@@ -59,7 +66,7 @@ jobs:
                 return 1
               }
             else
-              response=$(curl -sS -X "${method}" "${url}" \
+              response=$(curl -sSk -X "${method}" "${url}" \
                 -H "X-API-Key: ${PORTAINER_API_KEY}" \
                 -w '\n%{http_code}') || {
                 echo "curl failed for ${method} ${url}" >&2
