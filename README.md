@@ -10,7 +10,7 @@ It exposes a small HTTP API, loads configuration from environment variables or a
 - Trigger container commands directly through the Docker API.
 - Broadcast maintenance messages through Docker, RCON, or telnet targets.
 - Use per-game fallback rules when telnet delivery fails.
-- Run locally with `.env` or in Docker/Portainer with `stack.env`.
+- Run locally with `.env` or in a deployed container stack with `stack.env`.
 
 ## Requirements
 
@@ -221,7 +221,9 @@ The old `/v1/console/broadcast` path is still accepted as an alias.
 
 Build and run with Docker using the provided image or compose files.
 
-For Portainer stacks, use `docker-compose.portainer.yml` or `docker-compose.portainer.socket-proxy.yml` and provide a `stack.env` file with the same values you would normally place in `.env`.
+The `vortex-notify-agent` stack is Ansible-owned on the `vortex` host and lives at `/home/ross/stacks/vortex-notify-agent`. A push to `main` publishes a new image and then asks the fleet deploy seat to pull it and recreate only that stack.
+
+Provide a `stack.env` file next to the compose file with the same values you would normally place in `.env`.
 
 Example `stack.env`:
 
