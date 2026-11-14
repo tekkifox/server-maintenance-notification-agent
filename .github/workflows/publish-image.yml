@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Publish and deploy Docker image
 
 on:
   push:
@@ -50,3 +50,37 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # The stack is Ansible-owned on the vortex host, so the deploy no longer goes
+  # through Portainer. A restricted SSH key reaches the fleet deploy seat, which
+  # validates the host and stack, pulls the image and recreates only that stack.
+  deploy:
+    name: Deploy the notification agent
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: gh-notify-agent-${{ github.run_id }}
+
+      - name: Ask the fleet deploy seat to deploy
+        env:
+          # Both secrets are already installed in this repository. The seat
+          # address stays a secret so no real hostname is published here.
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SEAT_HOST: ${{ secrets.DEPLOY_SEAT_HOST }}
+          TARGET_HOST: vortex
+          TARGET_STACKS: vortex-notify-agent
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy"
+          chmod 0600 "$HOME/.ssh/deploy"
+          ssh -i "$HOME/.ssh/deploy" -p 32 \
+            -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            root@"$DEPLOY_SEAT_HOST" \
+            "fleet-deploy $TARGET_HOST $TARGET_STACKS deploy"
