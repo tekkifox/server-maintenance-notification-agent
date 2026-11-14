@@ -54,6 +54,7 @@ jobs:
   # The stack is Ansible-owned on the vortex host, so the deploy no longer goes
   # through Portainer. A restricted SSH key reaches the fleet deploy seat, which
   # validates the host and stack, pulls the image and recreates only that stack.
+  # The stack is named after this application, not the fleet's photos notify-agent.
   deploy:
     name: Deploy the notification agent
     needs: publish
@@ -74,7 +75,7 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_SEAT_HOST: ${{ secrets.DEPLOY_SEAT_HOST }}
           TARGET_HOST: vortex
-          TARGET_STACKS: vortex-notify-agent
+          TARGET_STACKS: vortex-server-maintenance-notification-agent
         run: |
           set -euo pipefail
           install -d -m 0700 "$HOME/.ssh"
