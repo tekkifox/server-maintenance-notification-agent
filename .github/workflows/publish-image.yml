@@ -52,9 +52,12 @@ jobs:
           cache-to: type=gha,mode=max
 
   # The stack is Ansible-owned on the vortex host, so the deploy no longer goes
-  # through Portainer. A restricted SSH key reaches the fleet deploy seat, which
-  # validates the host and stack, pulls the image and recreates only that stack.
-  # The stack is named after this application, not the fleet's photos notify-agent.
+  # through Portainer. A restricted SSH key reaches the deploy seat on the vortex
+  # host itself, whose infrastructure tree comes from tekkifox/vortexservers_iac.
+  # The seat manages the one host it runs on, so it needs only the stack name: it
+  # validates the stack, pulls the image and recreates only that stack. The seat
+  # address stays a secret so no real hostname is published here. The stack is
+  # named after this application, not the fleet's photos notify-agent.
   deploy:
     name: Deploy the notification agent
     needs: publish
@@ -68,13 +71,12 @@ jobs:
           authkey: ${{ secrets.TS_AUTHKEY }}
           hostname: gh-notify-agent-${{ github.run_id }}
 
-      - name: Ask the fleet deploy seat to deploy
+      - name: Ask the deploy seat on the vortex host to deploy
         env:
           # Both secrets are already installed in this repository. The seat
           # address stays a secret so no real hostname is published here.
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_SEAT_HOST: ${{ secrets.DEPLOY_SEAT_HOST }}
-          TARGET_HOST: vortex
           TARGET_STACKS: vortex-server-maintenance-notification-agent
         run: |
           set -euo pipefail
@@ -84,4 +86,4 @@ jobs:
           ssh -i "$HOME/.ssh/deploy" -p 32 \
             -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
             root@"$DEPLOY_SEAT_HOST" \
-            "fleet-deploy $TARGET_HOST $TARGET_STACKS deploy"
+            "vortex-deploy $TARGET_STACKS deploy"
