@@ -221,7 +221,7 @@ The old `/v1/console/broadcast` path is still accepted as an alias.
 
 Build and run with Docker using the provided image or compose files.
 
-The `vortex-server-maintenance-notification-agent` stack is Ansible-owned on the `vortex` host and lives at `/home/ross/stacks/vortex-server-maintenance-notification-agent`. A push to `main` publishes a new image and then asks the fleet deploy seat to pull it and recreate only that stack.
+The `vortex-server-maintenance-notification-agent` stack is Ansible-owned on the `vortex` host and lives at `/home/ross/stacks/vortex-server-maintenance-notification-agent`. A push to `main` publishes a new image and then asks the deploy seat on that host — built from the `tekkifox/vortexservers_iac` infrastructure tree — to pull it and recreate only that stack.
 
 Provide a `stack.env` file next to the compose file with the same values you would normally place in `.env`.
 
