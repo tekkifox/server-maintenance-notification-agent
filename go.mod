@@ -1,12 +1,12 @@
 module server-maintenance-notification-agent
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/gorcon/rcon v1.4.0
-	github.com/moby/moby/api v1.56.1
-	github.com/moby/moby/client v0.6.2
+	github.com/moby/moby/api v1.57.0
+	github.com/moby/moby/client v0.6.3
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
 )
